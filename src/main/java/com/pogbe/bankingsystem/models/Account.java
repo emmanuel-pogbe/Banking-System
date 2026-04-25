@@ -19,7 +19,12 @@ public class Account {
     private long id;
 
     @Column(unique=true)
-    private int accountNumber;
+    private String accountNumber;
+
+    private String firstThreeDigits;
+    private String lastThreeDigits;
+
+    private String accountPin;
 
     private BigDecimal accountBalance;
 
@@ -27,4 +32,11 @@ public class Account {
     @JoinColumn(name = "user_id",referencedColumnName = "id",nullable = false,unique = true)
     private UserModel user;
 
+    public Account(String generatedAccountNumber, String firstThreeDigits, String lastThreeDigits, String accountPin) {
+        this.accountNumber = generatedAccountNumber;
+        this.firstThreeDigits = firstThreeDigits;
+        this.lastThreeDigits = lastThreeDigits;
+        this.accountPin = accountPin;
+        this.accountBalance = BigDecimal.ZERO;
+    }
 }

@@ -24,10 +24,13 @@ public class UserModel {
 
     private String password;
 
+    @Column(unique=true)
+    private String phoneNumber;
+
     private String fullName;
 
     private LocalDateTime createdAt;
 
-    @OneToOne(mappedBy = "user")
+    @OneToOne(mappedBy = "user",cascade = CascadeType.ALL)
     private Account userAccount;
 }
