@@ -1,8 +1,6 @@
 package com.pogbe.bankingsystem.security;
 
 import com.pogbe.bankingsystem.models.UserModel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.pogbe.bankingsystem.repositories.UserModelRepository;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.util.Optional;
 
@@ -51,7 +50,7 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilters jwtAuthenticationFilters) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -61,8 +60,8 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/v1/users/login").permitAll()
                         .requestMatchers("/api/v1/users/register").permitAll()
                         .requestMatchers("/test/**").permitAll()
-                        .anyRequest().authenticated()
-                );
+                        .anyRequest().authenticated())
+                .addFilterBefore(jwtAuthenticationFilters, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

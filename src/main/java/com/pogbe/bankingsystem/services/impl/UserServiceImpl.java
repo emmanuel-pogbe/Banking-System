@@ -12,8 +12,6 @@ import com.pogbe.bankingsystem.services.interfaces.AesEncryptionService;
 import com.pogbe.bankingsystem.services.interfaces.UserService;
 import com.pogbe.bankingsystem.utils.AccountNumberGenerator;
 import com.pogbe.bankingsystem.utils.JwtUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -30,8 +28,6 @@ public class UserServiceImpl implements UserService {
     private final AesEncryptionService aesEncryptionService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
-
-    private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
 
     public UserServiceImpl(UserModelRepository userModelRepository, AesEncryptionService aesEncryptionService, PasswordEncoder passwordEncoder, JwtUtils jwtUtils) {
         this.userModelRepository = userModelRepository;
@@ -88,6 +84,7 @@ public class UserServiceImpl implements UserService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("username", gottenUser.getUsername());
         claims.put("userId", gottenUser.getId());
+        claims.put("accountId",gottenUser.getUserAccount().getId());
         String token = jwtUtils.generateAccessToken(gottenUser.getUsername(), claims);
         SuccessUserLoginResponse successUserLoginResponse = new SuccessUserLoginResponse();
         successUserLoginResponse.setAccessToken(token);

@@ -2,7 +2,6 @@ package com.pogbe.bankingsystem.exceptions;
 
 import com.pogbe.bankingsystem.dto.responses.ErrorResponse;
 import com.pogbe.bankingsystem.exceptions.custom.NullKeyStringException;
-import com.pogbe.bankingsystem.security.SecurityConfiguration;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
