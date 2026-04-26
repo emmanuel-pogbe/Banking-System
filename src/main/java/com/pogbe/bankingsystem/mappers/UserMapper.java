@@ -18,4 +18,11 @@ public class UserMapper {
         userModel.setCreatedAt(LocalDateTime.now());
         return userModel;
     }
+
+    public static SuccessUserCreatedResponse mapUserModelToSuccessUserCreatedResponse(UserModel userModel) {
+        SuccessUserCreatedResponse successUserCreatedResponse = new SuccessUserCreatedResponse();
+        successUserCreatedResponse.setUsername(userModel.getUsername());
+        successUserCreatedResponse.setAccountNumber(userModel.getUserAccount().getAccountNumber());
+        return successUserCreatedResponse;
+    }
 }

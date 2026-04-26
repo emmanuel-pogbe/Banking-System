@@ -11,5 +11,5 @@ import lombok.Setter;
 @NoArgsConstructor
 public class SuccessUserCreatedResponse {
     private String username;
-    private int accountNumber;
+    private String accountNumber;
 }
