@@ -1,45 +1,54 @@
 package com.pogbe.bankingsystem.services.impl;
 
 import com.pogbe.bankingsystem.dto.requests.UserCreateRequest;
+import com.pogbe.bankingsystem.dto.requests.UserLoginRequest;
 import com.pogbe.bankingsystem.dto.responses.SuccessUserCreatedResponse;
+import com.pogbe.bankingsystem.dto.responses.SuccessUserLoginResponse;
 import com.pogbe.bankingsystem.mappers.UserMapper;
 import com.pogbe.bankingsystem.models.Account;
 import com.pogbe.bankingsystem.models.UserModel;
 import com.pogbe.bankingsystem.repositories.UserModelRepository;
 import com.pogbe.bankingsystem.services.interfaces.AesEncryptionService;
-import com.pogbe.bankingsystem.services.interfaces.UserCreationService;
+import com.pogbe.bankingsystem.services.interfaces.UserService;
 import com.pogbe.bankingsystem.utils.AccountNumberGenerator;
+import com.pogbe.bankingsystem.utils.JwtUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
-public class UserCreationServiceImpl implements UserCreationService {
+public class UserServiceImpl implements UserService {
     private final UserModelRepository userModelRepository;
     private final AesEncryptionService aesEncryptionService;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtils jwtUtils;
 
-    public UserCreationServiceImpl(UserModelRepository userModelRepository, AesEncryptionService aesEncryptionService, PasswordEncoder passwordEncoder) {
+    private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
+
+    public UserServiceImpl(UserModelRepository userModelRepository, AesEncryptionService aesEncryptionService, PasswordEncoder passwordEncoder, JwtUtils jwtUtils) {
         this.userModelRepository = userModelRepository;
         this.aesEncryptionService = aesEncryptionService;
         this.passwordEncoder = passwordEncoder;
+        this.jwtUtils = jwtUtils;
     }
     
     @Override
     @Transactional
     public SuccessUserCreatedResponse createUser(UserCreateRequest userCreateRequest) {
-        Optional<UserModel> usernameOptional = userModelRepository.findByUsername(userCreateRequest.getUsername());
-        if (usernameOptional.isPresent()) {
+        if (userModelRepository.existsByUsername(userCreateRequest.getUsername())) {
             throw new DataIntegrityViolationException("Username already exists");
         }
-        Optional<UserModel> phoneNumberOptional = userModelRepository.findByPhoneNumber(userCreateRequest.getPhoneNumber());
-        if (phoneNumberOptional.isPresent()) {
+        if (userModelRepository.existsByPhoneNumber(userCreateRequest.getPhoneNumber())) {
             throw new DataIntegrityViolationException("Phone number already exists");
         }
-
         if (userCreateRequest.getAccountPin().length() != 4) {
             throw new DataIntegrityViolationException("Account pin must be 4 digits");
         }
@@ -64,5 +73,27 @@ public class UserCreationServiceImpl implements UserCreationService {
         savedUser = userModelRepository.save(savedUser);
 
         return new SuccessUserCreatedResponse(savedUser.getUsername(), generatedAccountNumber);
+    }
+
+    @Override
+    public SuccessUserLoginResponse loginUser(UserLoginRequest userLoginRequest) {
+        Optional<UserModel> userModel = userModelRepository.findByUsername(userLoginRequest.getUsername());
+        if (userModel.isEmpty()) {
+            throw new IllegalArgumentException("Invalid username or password");
+        }
+        UserModel gottenUser = userModel.get();
+        if (!passwordEncoder.matches(userLoginRequest.getPassword(), gottenUser.getPassword())) {
+            throw new IllegalArgumentException("Invalid username or password");
+        }
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("username", gottenUser.getUsername());
+        claims.put("userId", gottenUser.getId());
+        String token = jwtUtils.generateAccessToken(gottenUser.getUsername(), claims);
+        SuccessUserLoginResponse successUserLoginResponse = new SuccessUserLoginResponse();
+        successUserLoginResponse.setAccessToken(token);
+        successUserLoginResponse.setUsername(gottenUser.getUsername());
+        BigDecimal balance = gottenUser.getUserAccount().getAccountBalance();
+        successUserLoginResponse.setAccountBalance(balance);
+        return successUserLoginResponse;
     }
 }

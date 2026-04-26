@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@Table(indexes = @Index(name = "idx_username",columnList = "username"))
 public class UserModel {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

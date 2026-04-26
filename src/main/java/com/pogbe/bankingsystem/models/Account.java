@@ -28,7 +28,7 @@ public class Account {
 
     private BigDecimal accountBalance;
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id",referencedColumnName = "id",nullable = false,unique = true)
     private UserModel user;
 
