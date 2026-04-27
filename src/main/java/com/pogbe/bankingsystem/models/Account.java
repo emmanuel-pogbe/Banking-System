@@ -26,6 +26,7 @@ public class Account {
 
     private String accountPin;
 
+    @Column(nullable = false)
     private BigDecimal accountBalance;
 
     @OneToOne(fetch = FetchType.LAZY)
@@ -37,6 +38,5 @@ public class Account {
         this.firstThreeDigits = firstThreeDigits;
         this.lastThreeDigits = lastThreeDigits;
         this.accountPin = accountPin;
-        this.accountBalance = BigDecimal.ZERO;
     }
 }

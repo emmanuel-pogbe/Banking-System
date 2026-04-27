@@ -1,6 +1,7 @@
 package com.pogbe.bankingsystem.services.impl;
 
 import com.pogbe.bankingsystem.constants.TransactionType;
+import com.pogbe.bankingsystem.dto.requests.TransferMoneyRequest;
 import com.pogbe.bankingsystem.dto.responses.SuccessTransfer;
 import com.pogbe.bankingsystem.models.Account;
 import com.pogbe.bankingsystem.models.TransactionRecord;
@@ -12,11 +13,15 @@ import com.pogbe.bankingsystem.services.interfaces.AesEncryptionService;
 import com.pogbe.bankingsystem.services.interfaces.TransactionService;
 import io.jsonwebtoken.Claims;
 import jakarta.transaction.Transactional;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,6 +31,8 @@ public class TransactionServiceImpl implements TransactionService {
     private final UserModelRepository userModelRepository;
     private final TransactionRecordRepository transactionRecordRepository;
     private final AesEncryptionService aesEncryptionService;
+
+    private static final Logger log = LoggerFactory.getLogger(TransactionServiceImpl.class);
 
     public TransactionServiceImpl(
             AccountRepository accountRepository,
@@ -41,24 +48,25 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     @Transactional
-    public SuccessTransfer transfer(Authentication authentication, String receiverAccountNumber, double amount, String pin) {
+    public SuccessTransfer transfer(Authentication authentication, TransferMoneyRequest transferMoneyRequest) {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new IllegalArgumentException("Unauthenticated request");
         }
-        if (receiverAccountNumber == null || receiverAccountNumber.isBlank()) {
+        if (transferMoneyRequest.getReceiverAccountNumber() == null || transferMoneyRequest.getReceiverAccountNumber().isBlank()) {
             throw new IllegalArgumentException("Receiver account number is required");
         }
+        String pin = transferMoneyRequest.getPin();
         if (pin == null || pin.isBlank()) {
             throw new IllegalArgumentException("Account pin is required");
         }
         if (pin.length() != 4) {
             throw new IllegalArgumentException("Account pin must be 4 digits");
         }
-        if (amount <= 0) {
+        if (transferMoneyRequest.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Transfer amount must be greater than zero");
         }
 
-        BigDecimal transferAmount = BigDecimal.valueOf(amount);
+        BigDecimal transferAmount = transferMoneyRequest.getAmount();
         Account senderAccount = getSenderAccount(authentication);
 
         String decryptedStoredPin = aesEncryptionService.decrypt(senderAccount.getAccountPin());
@@ -66,7 +74,7 @@ public class TransactionServiceImpl implements TransactionService {
             throw new IllegalArgumentException("Invalid account pin");
         }
 
-        String encryptedReceiverAccountNumber = aesEncryptionService.encrypt(receiverAccountNumber);
+        String encryptedReceiverAccountNumber = aesEncryptionService.encrypt(transferMoneyRequest.getReceiverAccountNumber());
         Account receiverAccount = accountRepository.findByAccountNumber(encryptedReceiverAccountNumber)
                 .orElseThrow(() -> new IllegalArgumentException("Receiver account not found"));
 
@@ -128,6 +136,7 @@ public class TransactionServiceImpl implements TransactionService {
             }
         }
         // fallback
+        log.info("Fallback to using username");
         String username = authentication.getName();
         UserModel user = userModelRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Authenticated user not found"));
@@ -135,5 +144,15 @@ public class TransactionServiceImpl implements TransactionService {
             throw new IllegalArgumentException("Authenticated user does not have an account");
         }
         return user.getUserAccount();
+    }
+
+    @Override
+    public Map<String, BigDecimal> getAccountBalance(Authentication authentication) {
+        return Map.of("accountBalance", getSenderAccount(authentication).getAccountBalance());
+    }
+
+    @Override
+    public Map<String, String> getAccountNumber(Authentication authentication) {
+        return Map.of("accountNumber",aesEncryptionService.decrypt(getSenderAccount(authentication).getAccountNumber()));
     }
 }

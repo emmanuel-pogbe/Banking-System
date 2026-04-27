@@ -59,7 +59,7 @@ public class UserServiceImpl implements UserService {
         String encryptedAccountNumber = aesEncryptionService.encrypt(generatedAccountNumber);
 
         Account account = new Account(encryptedAccountNumber, firstThreeDigits, lastThreeDigits, encryptedAccountPin);
-
+        account.setAccountBalance(BigDecimal.valueOf(10000));
         UserModel savedUser = UserMapper.mapRequestDtoToUserModel(userCreateRequest);
         account.setUser(savedUser);
 
@@ -85,6 +85,7 @@ public class UserServiceImpl implements UserService {
         claims.put("username", gottenUser.getUsername());
         claims.put("userId", gottenUser.getId());
         claims.put("accountId",gottenUser.getUserAccount().getId());
+        claims.put("role", "USER");
         String token = jwtUtils.generateAccessToken(gottenUser.getUsername(), claims);
         SuccessUserLoginResponse successUserLoginResponse = new SuccessUserLoginResponse();
         successUserLoginResponse.setAccessToken(token);
