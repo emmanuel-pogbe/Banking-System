@@ -4,10 +4,7 @@ import com.pogbe.bankingsystem.dto.requests.TransferMoneyRequest;
 import com.pogbe.bankingsystem.dto.requests.UserAccountNumberRequest;
 import com.pogbe.bankingsystem.dto.requests.UserCreateRequest;
 import com.pogbe.bankingsystem.dto.requests.UserLoginRequest;
-import com.pogbe.bankingsystem.dto.responses.SuccessTransfer;
-import com.pogbe.bankingsystem.dto.responses.SuccessUserCreatedResponse;
-import com.pogbe.bankingsystem.dto.responses.SuccessUserLoginResponse;
-import com.pogbe.bankingsystem.dto.responses.UserAccountInformation;
+import com.pogbe.bankingsystem.dto.responses.*;
 import com.pogbe.bankingsystem.services.impl.TransactionServiceImpl;
 import com.pogbe.bankingsystem.services.interfaces.TransactionService;
 import com.pogbe.bankingsystem.services.interfaces.UserService;
@@ -15,11 +12,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -73,5 +68,19 @@ public class UserController {
     @PostMapping("/account")
     public ResponseEntity<UserAccountInformation> getUserAccountInformation(@RequestBody UserAccountNumberRequest accountInfo) {
         return ResponseEntity.ok(transactionService.getUserAccountInformation(accountInfo.getAccountNumber()));
+    }
+
+    @PostMapping("profile/picture")
+    public ResponseEntity<GenericSuccessResponse> uploadProfilePicture(@RequestParam("image") MultipartFile image, Authentication authentication) {
+        return ResponseEntity.ok(userService.updateProfilePicture(authentication, image));
+    }
+
+    @GetMapping("profile/picture")
+    public ResponseEntity<byte[]> getProfilePicture(Authentication authentication) {
+        byte[] imageBytes = userService.getProfilePicture(authentication);
+        String contentType = userService.getProfilePictureContentType(authentication);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .body(imageBytes);
     }
 }

@@ -32,6 +32,11 @@ public class UserModel {
 
     private LocalDateTime createdAt;
 
+    @Lob
+    private byte[] profilePicture;
+
+    private String profilePictureContentType;
+
     @OneToOne(mappedBy = "user",cascade = CascadeType.ALL)
     private Account userAccount;
 }

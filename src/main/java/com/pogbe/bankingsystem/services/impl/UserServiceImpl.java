@@ -2,22 +2,23 @@ package com.pogbe.bankingsystem.services.impl;
 
 import com.pogbe.bankingsystem.dto.requests.UserCreateRequest;
 import com.pogbe.bankingsystem.dto.requests.UserLoginRequest;
+import com.pogbe.bankingsystem.dto.responses.GenericSuccessResponse;
 import com.pogbe.bankingsystem.dto.responses.SuccessUserCreatedResponse;
 import com.pogbe.bankingsystem.dto.responses.SuccessUserLoginResponse;
+import com.pogbe.bankingsystem.exceptions.custom.ResourceNotAvailable;
 import com.pogbe.bankingsystem.mappers.UserMapper;
 import com.pogbe.bankingsystem.models.Account;
 import com.pogbe.bankingsystem.models.UserModel;
 import com.pogbe.bankingsystem.repositories.UserModelRepository;
 import com.pogbe.bankingsystem.services.interfaces.AesEncryptionService;
 import com.pogbe.bankingsystem.services.interfaces.UserService;
-import com.pogbe.bankingsystem.utils.AccountNumberGenerator;
-import com.pogbe.bankingsystem.utils.JwtUtils;
-import com.pogbe.bankingsystem.utils.NumericUtils;
-import com.pogbe.bankingsystem.utils.PasswordValidatorUtils;
+import com.pogbe.bankingsystem.utils.*;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -37,7 +38,7 @@ public class UserServiceImpl implements UserService {
         this.passwordEncoder = passwordEncoder;
         this.jwtUtils = jwtUtils;
     }
-    
+
     @Override
     @Transactional
     public SuccessUserCreatedResponse createUser(UserCreateRequest userCreateRequest) {
@@ -62,7 +63,7 @@ public class UserServiceImpl implements UserService {
         if (userModelRepository.existsByPhoneNumber(userCreateRequest.getPhoneNumber())) {
             throw new DataIntegrityViolationException("Phone number already exists");
         }
-        
+
         String generatedAccountNumber = AccountNumberGenerator.generateAccountNumber(); // generate a unique account number
         String accountPin = userCreateRequest.getAccountPin();
 
@@ -96,7 +97,7 @@ public class UserServiceImpl implements UserService {
         if (!PasswordValidatorUtils.isValidPassword(userLoginRequest.getPassword())) {
             throw new IllegalArgumentException("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character");
         }
-        
+
         Optional<UserModel> userModel = userModelRepository.findByUsername(userLoginRequest.getUsername());
         if (userModel.isEmpty()) {
             throw new IllegalArgumentException("Invalid username or password");
@@ -119,7 +120,48 @@ public class UserServiceImpl implements UserService {
         return successUserLoginResponse;
     }
 
+    @Override
+    public GenericSuccessResponse updateProfilePicture(Authentication authentication, MultipartFile file) {
+
+        if (file == null || file.getContentType() == null) {
+            throw new IllegalArgumentException("Image file type is required");
+        }
+        if (!file.getContentType().startsWith("image/")) {
+            throw new IllegalArgumentException("Invalid file type. Only image files are allowed.");
+        }
+        UserModel user = getUserFromAuthentication(authentication);
+        try {
+            user.setProfilePicture(ImageUtils.compressImage(file.getBytes()));
+            user.setProfilePictureContentType(file.getContentType());
+            userModelRepository.save(user);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while uploading profile picture");
+        }
+        return new GenericSuccessResponse("Profile picture updated successfully");
+    }
+
+    @Override
+    public byte[] getProfilePicture(Authentication authentication) {
+        UserModel user = getUserFromAuthentication(authentication);
+        byte[] imageData = user.getProfilePicture();
+        if (imageData == null) {
+            throw new ResourceNotAvailable("Profile picture not set");
+        }
+        
+        return ImageUtils.decompressImage(imageData);
+    }
+
+    @Override
+    public String getProfilePictureContentType(Authentication authentication) {
+        UserModel user = getUserFromAuthentication(authentication);
+        return user.getProfilePictureContentType() == null ? "image/jpeg" : user.getProfilePictureContentType();
+    }
+
     private boolean properUsernameFormat(String username) {
         return username.length() >= 3 && !NumericUtils.isNumeric(username);
+    }
+
+    private UserModel getUserFromAuthentication(Authentication authentication) {
+        return userModelRepository.findByUsername(authentication.getName()).orElseThrow(()->new IllegalArgumentException("Authentication failed: Invalid username or password"));
     }
 }

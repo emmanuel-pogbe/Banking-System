@@ -18,6 +18,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
@@ -84,6 +85,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex, HttpServletRequest request) {
         return buildErrorResponse(
                 "ILLEGAL_ARGUMENT",
+                ex.getMessage(),
+                HttpStatus.BAD_REQUEST,
+                request
+        );
+    }
+    @ExceptionHandler(value = {MissingServletRequestPartException.class})
+    public ResponseEntity<ErrorResponse> handleMissingServletRequestPartException(MissingServletRequestPartException ex, HttpServletRequest request) {
+        return buildErrorResponse(
+                "MISSING_REQUEST_PART",
                 ex.getMessage(),
                 HttpStatus.BAD_REQUEST,
                 request
