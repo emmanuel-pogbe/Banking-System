@@ -1,11 +1,13 @@
 package com.pogbe.bankingsystem.controllers;
 
 import com.pogbe.bankingsystem.dto.requests.TransferMoneyRequest;
+import com.pogbe.bankingsystem.dto.requests.UserAccountNumberRequest;
 import com.pogbe.bankingsystem.dto.requests.UserCreateRequest;
 import com.pogbe.bankingsystem.dto.requests.UserLoginRequest;
 import com.pogbe.bankingsystem.dto.responses.SuccessTransfer;
 import com.pogbe.bankingsystem.dto.responses.SuccessUserCreatedResponse;
 import com.pogbe.bankingsystem.dto.responses.SuccessUserLoginResponse;
+import com.pogbe.bankingsystem.dto.responses.UserAccountInformation;
 import com.pogbe.bankingsystem.services.impl.TransactionServiceImpl;
 import com.pogbe.bankingsystem.services.interfaces.TransactionService;
 import com.pogbe.bankingsystem.services.interfaces.UserService;
@@ -46,7 +48,7 @@ public class UserController {
         return ResponseEntity.ok(transactionService.getAccountBalance(authentication));
     }
 
-    @GetMapping("/accountno")
+    @GetMapping("/myaccount")
     public ResponseEntity<Map<String, String>> getAccountNumber(Authentication authentication) {
         return ResponseEntity.ok(transactionService.getAccountNumber(authentication));
     }
@@ -54,5 +56,10 @@ public class UserController {
     @PostMapping("/transfer")
     public ResponseEntity<SuccessTransfer> transferMoney(@RequestBody TransferMoneyRequest transferMoneyRequest, Authentication authentication) {
         return ResponseEntity.ok(transactionService.transfer(authentication, transferMoneyRequest));
+    }
+
+    @PostMapping("/account")
+    public ResponseEntity<UserAccountInformation> getUserAccountInformation(@RequestBody UserAccountNumberRequest accountInfo) {
+        return ResponseEntity.ok(transactionService.getUserAccountInformation(accountInfo.getAccountNumber()));
     }
 }

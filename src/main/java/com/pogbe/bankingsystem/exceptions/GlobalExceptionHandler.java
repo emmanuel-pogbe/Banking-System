@@ -2,6 +2,7 @@ package com.pogbe.bankingsystem.exceptions;
 
 import com.pogbe.bankingsystem.dto.responses.ErrorResponse;
 import com.pogbe.bankingsystem.exceptions.custom.NullKeyStringException;
+import com.pogbe.bankingsystem.exceptions.custom.ResourceNotAvailable;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +10,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -41,8 +43,10 @@ public class GlobalExceptionHandler {
         );
     }
 
-    @ExceptionHandler(value = {NoResourceFoundException.class})
-    public ResponseEntity<ErrorResponse> handleNoResourceFoundException(NoResourceFoundException ex, HttpServletRequest request) {
+
+
+    @ExceptionHandler({NoResourceFoundException.class, ResourceNotAvailable.class})
+    public ResponseEntity<ErrorResponse> handleNoResourceFoundException(Exception ex, HttpServletRequest request) {
         return buildErrorResponse(
                 "NO_RESOURCE_FOUND",
                 ex.getMessage(),
@@ -51,26 +55,45 @@ public class GlobalExceptionHandler {
         );
     }
 
-    @ExceptionHandler(value = {HttpMessageNotReadableException.class})
+    @ExceptionHandler(value = {HttpMessageNotReadableException.class, })
     public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex, HttpServletRequest request) {
         return buildErrorResponse(
                 "HTTP_MESSAGE_NOT_READABLE",
-                ex.getMessage(),
+                "Missing required request parameters",
                 HttpStatus.BAD_REQUEST,
                 request
         );
     }
 
-    // This should ideally never be reached
-    @ExceptionHandler(value = {Exception.class})
-    public ResponseEntity<ErrorResponse> handleAllExceptions(Exception ex,HttpServletRequest request) {
+    @ExceptionHandler(value = {HttpRequestMethodNotSupportedException.class})
+    public ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
         return buildErrorResponse(
-                "INTERNAL_SERVER_ERROR",
-                "Something went wrong.",
-                HttpStatus.INTERNAL_SERVER_ERROR,
+                "HTTP_REQUEST_METHOD_NOT_SUPPORTED",
+                ex.getMessage(),
+                HttpStatus.METHOD_NOT_ALLOWED,
                 request
         );
     }
+
+    @ExceptionHandler(value = {IllegalArgumentException.class})
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex, HttpServletRequest request) {
+        return buildErrorResponse(
+                "ILLEGAL_ARGUMENT",
+                ex.getMessage(),
+                HttpStatus.BAD_REQUEST,
+                request
+        );
+    }
+    // This should ideally never be reached
+//    @ExceptionHandler(value = {Exception.class})
+//    public ResponseEntity<ErrorResponse> handleAllExceptions(Exception ex,HttpServletRequest request) {
+//        return buildErrorResponse(
+//                "INTERNAL_SERVER_ERROR",
+//                "Something went wrong.",
+//                HttpStatus.INTERNAL_SERVER_ERROR,
+//                request
+//        );
+//    }
 
     private ResponseEntity<ErrorResponse> buildErrorResponse(
             String errorCode,
