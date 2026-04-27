@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+
 @Repository
 public interface TransactionRecordRepository extends JpaRepository<TransactionRecord, Long> {
 
@@ -20,10 +22,14 @@ public interface TransactionRecordRepository extends JpaRepository<TransactionRe
                OR (tr.receiverAccount.id = :accountId
                     AND tr.transactionType = com.pogbe.bankingsystem.constants.TransactionType.CREDIT))
               AND (:type IS NULL OR tr.transactionType = :type)
+              AND (:startDateTime IS NULL OR tr.date >= :startDateTime)
+              AND (:endDateTime IS NULL OR tr.date <= :endDateTime)
             """)
     Page<TransactionRecord> findStatementByAccountId(
             @Param("accountId") Long accountId,
             @Param("type") TransactionType type,
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime,
             Pageable pageable
     );
 }
