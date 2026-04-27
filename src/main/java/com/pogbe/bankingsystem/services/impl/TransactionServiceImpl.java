@@ -13,6 +13,7 @@ import com.pogbe.bankingsystem.repositories.TransactionRecordRepository;
 import com.pogbe.bankingsystem.repositories.UserModelRepository;
 import com.pogbe.bankingsystem.services.interfaces.AesEncryptionService;
 import com.pogbe.bankingsystem.services.interfaces.TransactionService;
+import com.pogbe.bankingsystem.utils.NumericUtils;
 import io.jsonwebtoken.Claims;
 import jakarta.transaction.Transactional;
 
@@ -55,12 +56,9 @@ public class TransactionServiceImpl implements TransactionService {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new IllegalArgumentException("Unauthenticated request");
         }
-        String receiverUsername = transferMoneyRequest.getReceiverUsername();
-        String receiverAccountNumber = transferMoneyRequest.getReceiverAccountNumber();
-        if (receiverAccountNumber == null || receiverAccountNumber.isBlank()) {
-            if (receiverUsername == null || receiverUsername.isBlank()) {
-                throw new IllegalArgumentException("Receiver account number or username is required");
-            }
+        String receiverDetail = transferMoneyRequest.getReceiver();
+        if (receiverDetail == null || receiverDetail.isBlank()) {
+           throw new IllegalArgumentException("Receiver account number or username is required");
         }
         String pin = transferMoneyRequest.getPin();
         if (pin == null || pin.isBlank()) {
@@ -81,14 +79,14 @@ public class TransactionServiceImpl implements TransactionService {
             throw new IllegalArgumentException("Invalid account pin");
         }
         Account receiverAccount = null;
-        if (receiverAccountNumber != null && !receiverAccountNumber.isBlank()) {
-            String encryptedReceiverAccountNumber = aesEncryptionService.encrypt(transferMoneyRequest.getReceiverAccountNumber());
+        if (NumericUtils.isNumeric(receiverDetail)) {
+            String encryptedReceiverAccountNumber = aesEncryptionService.encrypt(transferMoneyRequest.getReceiver());
             receiverAccount = accountRepository.findByAccountNumber(encryptedReceiverAccountNumber)
-                    .orElseThrow(() -> new IllegalArgumentException("Receiver account not found"));
+                    .orElseThrow(() -> new ResourceNotAvailable("Receiver account not found"));
         }
         else {
-            receiverAccount = accountRepository.findByUserUsername(receiverUsername)
-                    .orElseThrow(() -> new IllegalArgumentException("Receiver user not found"));
+            receiverAccount = accountRepository.findByUserUsername(receiverDetail)
+                    .orElseThrow(() -> new ResourceNotAvailable("Receiver user not found"));
         }
         if (senderAccount.getId() == receiverAccount.getId()) {
             throw new IllegalArgumentException("Cannot transfer to the same account");
@@ -175,7 +173,7 @@ public class TransactionServiceImpl implements TransactionService {
             throw new IllegalArgumentException("Account number is required");
         }
         log.info("Account number length: {}", accountNumber.length());
-        if (!isNumeric(accountNumber) || accountNumber.length() != 10) {
+        if (!NumericUtils.isNumeric(accountNumber) || accountNumber.length() != 10) {
             throw new IllegalArgumentException("Account number is invalid. It must be 10 digits long, contain only numbers and be a String");
         }
         String encryptedAccountNumber = aesEncryptionService.encrypt(accountNumber);
@@ -187,13 +185,5 @@ public class TransactionServiceImpl implements TransactionService {
                 account.get().getUser().getUsername());
     }
 
-    private boolean isNumeric(String str) {
-        if (str == null || str.isEmpty()) return false;
-        for (char c : str.toCharArray()) {
-            if (!Character.isDigit(c)) {
-                return false;
-            }
-        }
-        return true;
-    }
+
 }

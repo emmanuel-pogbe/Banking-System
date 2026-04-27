@@ -12,8 +12,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @NoArgsConstructor
 public class TransferMoneyRequest {
-    private String receiverAccountNumber;
-    private String receiverUsername;
+    private String receiver;
     private String pin;
     private BigDecimal amount;
 }

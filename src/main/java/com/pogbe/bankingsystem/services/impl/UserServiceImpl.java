@@ -12,6 +12,7 @@ import com.pogbe.bankingsystem.services.interfaces.AesEncryptionService;
 import com.pogbe.bankingsystem.services.interfaces.UserService;
 import com.pogbe.bankingsystem.utils.AccountNumberGenerator;
 import com.pogbe.bankingsystem.utils.JwtUtils;
+import com.pogbe.bankingsystem.utils.NumericUtils;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,9 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public SuccessUserCreatedResponse createUser(UserCreateRequest userCreateRequest) {
+        if (!properUsernameFormat(userCreateRequest.getUsername())) {
+            throw new IllegalArgumentException("Username must be at least 3 characters long and can't contain only numbers");
+        }
         if (userModelRepository.existsByUsername(userCreateRequest.getUsername())) {
             throw new DataIntegrityViolationException("Username already exists");
         }
@@ -71,6 +75,8 @@ public class UserServiceImpl implements UserService {
         return new SuccessUserCreatedResponse(savedUser.getUsername(), generatedAccountNumber);
     }
 
+
+
     @Override
     public SuccessUserLoginResponse loginUser(UserLoginRequest userLoginRequest) {
         Optional<UserModel> userModel = userModelRepository.findByUsername(userLoginRequest.getUsername());
@@ -93,5 +99,9 @@ public class UserServiceImpl implements UserService {
         BigDecimal balance = gottenUser.getUserAccount().getAccountBalance();
         successUserLoginResponse.setAccountBalance(balance);
         return successUserLoginResponse;
+    }
+
+    private boolean properUsernameFormat(String username) {
+        return username.length() >= 3 && !NumericUtils.isNumeric(username);
     }
 }
