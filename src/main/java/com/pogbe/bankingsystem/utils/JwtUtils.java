@@ -17,7 +17,7 @@ import java.util.Map;
 public class JwtUtils {
     @Value("${jwt.secret}")
     private String secretString;
-    private static final long TOKEN_EXP = 1000L * 60 * 15; // 15 mins
+    private static final long TOKEN_EXP = 1000L * 60 * 30; // 30 mins
 
     private SecretKey secretKey;
 

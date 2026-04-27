@@ -23,7 +23,7 @@ public class TransactionsController {
 		this.transactionRecordGenerationService = transactionRecordGenerationService;
 	}
 
-	@Operation(summary = "Get account records", description = "Get account records based on some optional filters like date, or transaction type")
+	@Operation(summary = "Get account records with filters", description = "Get account records based on some optional filters like date, or transaction type")
 	@GetMapping("/records")
 	public ResponseEntity<PaginatedTransactionRecordsResponse> getAccountRecords(
             @ModelAttribute TransactionGenerationRequest transactionGenerationRequest,

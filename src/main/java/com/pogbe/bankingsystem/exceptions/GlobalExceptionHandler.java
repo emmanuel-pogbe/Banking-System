@@ -4,12 +4,16 @@ import com.pogbe.bankingsystem.dto.responses.ErrorResponse;
 import com.pogbe.bankingsystem.exceptions.custom.NullKeyStringException;
 import com.pogbe.bankingsystem.exceptions.custom.ResourceNotAvailable;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.BindException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -56,7 +60,7 @@ public class GlobalExceptionHandler {
         );
     }
 
-    @ExceptionHandler(value = {HttpMessageNotReadableException.class, })
+    @ExceptionHandler(value = {HttpMessageNotReadableException.class})
     public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex, HttpServletRequest request) {
         return buildErrorResponse(
                 "HTTP_MESSAGE_NOT_READABLE",
@@ -95,16 +99,84 @@ public class GlobalExceptionHandler {
                 request
         );
     }
-    // This should ideally never be reached
-//    @ExceptionHandler(value = {Exception.class})
-//    public ResponseEntity<ErrorResponse> handleAllExceptions(Exception ex,HttpServletRequest request) {
-//        return buildErrorResponse(
-//                "INTERNAL_SERVER_ERROR",
-//                "Something went wrong.",
-//                HttpStatus.INTERNAL_SERVER_ERROR,
-//                request
-//        );
-//    }
+
+        @ExceptionHandler(MethodArgumentNotValidException.class)
+        public ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(
+            MethodArgumentNotValidException ex,
+            HttpServletRequest request
+        ) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+            .findFirst()
+            .map(err -> err.getField() + ": " + err.getDefaultMessage())
+            .orElse("Validation failed");
+        return buildErrorResponse(
+            "VALIDATION_ERROR",
+            message,
+            HttpStatus.BAD_REQUEST,
+            request
+        );
+        }
+
+        @ExceptionHandler(BindException.class)
+        public ResponseEntity<ErrorResponse> handleBindException(
+            BindException ex,
+            HttpServletRequest request
+        ) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+            .findFirst()
+            .map(err -> err.getField() + ": " + err.getDefaultMessage())
+            .orElse("Invalid request parameters");
+        return buildErrorResponse(
+            "BIND_ERROR",
+            message,
+            HttpStatus.BAD_REQUEST,
+            request
+        );
+        }
+
+        @ExceptionHandler(ConstraintViolationException.class)
+        public ResponseEntity<ErrorResponse> handleConstraintViolationException(
+            ConstraintViolationException ex,
+            HttpServletRequest request
+        ) {
+        String message = ex.getConstraintViolations().stream()
+            .findFirst()
+            .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+            .orElse("Constraint violation");
+        return buildErrorResponse(
+            "CONSTRAINT_VIOLATION",
+            message,
+            HttpStatus.BAD_REQUEST,
+            request
+        );
+        }
+
+        @ExceptionHandler(MissingServletRequestParameterException.class)
+        public ResponseEntity<ErrorResponse> handleMissingServletRequestParameterException(
+            MissingServletRequestParameterException ex,
+            HttpServletRequest request
+        ) {
+        return buildErrorResponse(
+            "MISSING_REQUEST_PARAMETER",
+            "Missing required parameter '" + ex.getParameterName() + "'",
+            HttpStatus.BAD_REQUEST,
+            request
+        );
+        }
+
+        @ExceptionHandler(RuntimeException.class)
+        public ResponseEntity<ErrorResponse> handleRuntimeException(
+            RuntimeException ex,
+            HttpServletRequest request
+        ) {
+        log.error("Unhandled runtime exception", ex);
+        return buildErrorResponse(
+            "INTERNAL_SERVER_ERROR",
+            "An unexpected error occurred. Please try again later.",
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            request
+        );
+        }
 
     private ResponseEntity<ErrorResponse> buildErrorResponse(
             String errorCode,

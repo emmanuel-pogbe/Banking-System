@@ -13,6 +13,7 @@ import com.pogbe.bankingsystem.services.interfaces.UserService;
 import com.pogbe.bankingsystem.utils.AccountNumberGenerator;
 import com.pogbe.bankingsystem.utils.JwtUtils;
 import com.pogbe.bankingsystem.utils.NumericUtils;
+import com.pogbe.bankingsystem.utils.PasswordValidatorUtils;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -40,20 +41,29 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public SuccessUserCreatedResponse createUser(UserCreateRequest userCreateRequest) {
+        // some simple validation
         if (!properUsernameFormat(userCreateRequest.getUsername())) {
             throw new IllegalArgumentException("Username must be at least 3 characters long and can't contain only numbers");
         }
+        if (userCreateRequest.getAccountPin().length() != 4 || !NumericUtils.isNumeric(userCreateRequest.getAccountPin())) {
+            throw new IllegalArgumentException("Account pin must be only 4 digits");
+        }
+        if (userCreateRequest.getPhoneNumber().length() < 10 || userCreateRequest.getPhoneNumber().length() > 12) {
+            throw new IllegalArgumentException("Phone number must be between 10 and 12 digits long");
+        }
+        if (!PasswordValidatorUtils.isValidPassword(userCreateRequest.getPassword())) {
+            throw new IllegalArgumentException("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character");
+        }
+
+        // checking if a username or phone number already exists
         if (userModelRepository.existsByUsername(userCreateRequest.getUsername())) {
             throw new DataIntegrityViolationException("Username already exists");
         }
         if (userModelRepository.existsByPhoneNumber(userCreateRequest.getPhoneNumber())) {
             throw new DataIntegrityViolationException("Phone number already exists");
         }
-        if (userCreateRequest.getAccountPin().length() != 4) {
-            throw new DataIntegrityViolationException("Account pin must be 4 digits");
-        }
         
-        String generatedAccountNumber = AccountNumberGenerator.generateAccountNumber();
+        String generatedAccountNumber = AccountNumberGenerator.generateAccountNumber(); // generate a unique account number
         String accountPin = userCreateRequest.getAccountPin();
 
         String firstThreeDigits = generatedAccountNumber.substring(0, 3);
@@ -63,7 +73,7 @@ public class UserServiceImpl implements UserService {
         String encryptedAccountNumber = aesEncryptionService.encrypt(generatedAccountNumber);
 
         Account account = new Account(encryptedAccountNumber, firstThreeDigits, lastThreeDigits, encryptedAccountPin);
-        account.setAccountBalance(BigDecimal.valueOf(10000));
+        account.setAccountBalance(BigDecimal.valueOf(10000)); // some initial balance
         UserModel savedUser = UserMapper.mapRequestDtoToUserModel(userCreateRequest);
         account.setUser(savedUser);
 
@@ -79,6 +89,14 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public SuccessUserLoginResponse loginUser(UserLoginRequest userLoginRequest) {
+        // some basic validation
+        if (!properUsernameFormat(userLoginRequest.getUsername())) {
+            throw new IllegalArgumentException("Username must be at least 3 characters long and can't contain only numbers");
+        }
+        if (!PasswordValidatorUtils.isValidPassword(userLoginRequest.getPassword())) {
+            throw new IllegalArgumentException("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character");
+        }
+        
         Optional<UserModel> userModel = userModelRepository.findByUsername(userLoginRequest.getUsername());
         if (userModel.isEmpty()) {
             throw new IllegalArgumentException("Invalid username or password");

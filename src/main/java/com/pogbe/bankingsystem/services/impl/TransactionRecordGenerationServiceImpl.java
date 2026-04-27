@@ -126,14 +126,16 @@ public class TransactionRecordGenerationServiceImpl implements TransactionRecord
 		}
 	}
 
-	private LocalDateTime parseEndDate(String input) {
+	private static LocalDateTime parseEndDate(String input) {
 		if (input == null || input.isBlank()) {
 			return null;
 		}
 		try {
+			System.err.println(input);
 			return LocalDate.parse(input.trim()).atTime(LocalTime.MAX);
 		} catch (DateTimeParseException ex) {
 			throw new IllegalArgumentException("End date must be in yyyy-MM-dd format");
 		}
 	}
+
 }

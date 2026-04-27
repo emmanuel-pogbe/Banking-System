@@ -61,13 +61,14 @@ public class UserController {
         return ResponseEntity.ok(transactionService.getAccountNumber(authentication));
     }
 
+    @Operation(summary = "Transfer funds to another user", description = "Transfer money to another user based on their account number or their username")
     @PostMapping("/transfer")
     @SecurityRequirement(name = "Bearer Authentication")
     public ResponseEntity<SuccessTransfer> transferMoney(@RequestBody TransferMoneyRequest transferMoneyRequest, Authentication authentication) {
         return ResponseEntity.ok(transactionService.transfer(authentication, transferMoneyRequest));
     }
 
-    @Operation(summary = "Get account information", description = "Get account username based on the account number")
+    @Operation(summary = "Get username of user based on account number", description = "Get account username based on the account number")
     @SecurityRequirement(name = "Bearer Authentication")
     @PostMapping("/account")
     public ResponseEntity<UserAccountInformation> getUserAccountInformation(@RequestBody UserAccountNumberRequest accountInfo) {

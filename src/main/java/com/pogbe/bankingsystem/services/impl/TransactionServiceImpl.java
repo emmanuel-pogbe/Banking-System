@@ -181,7 +181,8 @@ public class TransactionServiceImpl implements TransactionService {
             throw new ResourceNotAvailable("Account not found");
         }
         return new UserAccountInformation(
-                account.get().getUser().getUsername());
+                account.get().getUser().getUsername()
+            );
     }
 
 
