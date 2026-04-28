@@ -1,5 +1,6 @@
 package com.pogbe.bankingsystem.services.impl;
 
+import com.pogbe.bankingsystem.dto.responses.DocumentFileDTO;
 import com.pogbe.bankingsystem.dto.responses.VerificationDocumentDTO;
 import com.pogbe.bankingsystem.exceptions.custom.FileHandlingException;
 import com.pogbe.bankingsystem.mappers.VerificationDocumentMapper;
@@ -12,6 +13,7 @@ import com.pogbe.bankingsystem.utils.FilesValidatorUtils;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -77,6 +79,21 @@ public class DocumentServiceImpl implements DocumentService {
         return verificationDocumentMapper.mapToVerificationDocumentDTOs(documents);
     }
 
+    @Override
+    public DocumentFileDTO getVerificationDocumentById(Long id, Authentication authentication) {
+        UserModel user = getUserFromAuthentication(authentication);
+        VerificationDocument document = verificationDocumentRepository.findByIdAndUser(id,user)
+                .orElseThrow(()->new IllegalArgumentException("Document not found"));
+        DocumentFileDTO documentFileDTO = new DocumentFileDTO();
+        documentFileDTO.setDocumentFile(document.getDocument());
+        try {
+        documentFileDTO.setMediaType(MediaType.parseMediaType(document.getDocumentType()));
+        } catch (Exception e) {
+            throw new RuntimeException("Couldn't parse media type");
+        }
+        return documentFileDTO;
+    }
+    
     protected UserModel getUserFromAuthentication(Authentication authentication) {
         return userModelRepository.findByUsername(authentication.getName()).orElseThrow(()->new IllegalArgumentException("Authentication failed: Invalid username or password"));
     }

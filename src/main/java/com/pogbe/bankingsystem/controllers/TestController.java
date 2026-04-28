@@ -28,5 +28,5 @@ public class TestController {
 
         return ResponseEntity.ok("Image uploaded successfully");
     }
-    
+
 }

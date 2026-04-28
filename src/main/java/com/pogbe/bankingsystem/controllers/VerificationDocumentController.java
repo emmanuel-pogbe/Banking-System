@@ -3,7 +3,9 @@ package com.pogbe.bankingsystem.controllers;
 import java.util.List;
 import java.util.Map;
 
+import com.pogbe.bankingsystem.dto.responses.DocumentFileDTO;
 import com.pogbe.bankingsystem.dto.responses.VerificationDocumentDTO;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -13,10 +15,10 @@ import com.pogbe.bankingsystem.services.interfaces.DocumentService;
 
 @RestController
 @RequestMapping("/api/v1/document")
-public class DocumentUploadController {
+public class VerificationDocumentController {
     private final DocumentService documentService;
 
-    public DocumentUploadController(DocumentService documentService) {
+    public VerificationDocumentController(DocumentService documentService) {
         this.documentService = documentService;
     }
 
@@ -28,5 +30,14 @@ public class DocumentUploadController {
     @GetMapping("")
     public ResponseEntity<List<VerificationDocumentDTO>> getAllDocuments(Authentication authentication) {
         return ResponseEntity.ok(documentService.getAllVerificationDocumentsByUser(authentication));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<byte[]> getDocument(@PathVariable("id") Long id, Authentication authentication) {
+        DocumentFileDTO documentFileDTO = documentService.getVerificationDocumentById(id, authentication);
+        return ResponseEntity
+                .ok()
+                .contentType(documentFileDTO.getMediaType())
+                .body(documentFileDTO.getDocumentFile());
     }
 }
