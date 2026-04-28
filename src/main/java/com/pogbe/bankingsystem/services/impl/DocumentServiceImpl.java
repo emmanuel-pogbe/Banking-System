@@ -1,6 +1,8 @@
 package com.pogbe.bankingsystem.services.impl;
 
+import com.pogbe.bankingsystem.dto.responses.VerificationDocumentDTO;
 import com.pogbe.bankingsystem.exceptions.custom.FileHandlingException;
+import com.pogbe.bankingsystem.mappers.VerificationDocumentMapper;
 import com.pogbe.bankingsystem.models.UserModel;
 import com.pogbe.bankingsystem.models.VerificationDocument;
 import com.pogbe.bankingsystem.repositories.UserModelRepository;
@@ -23,10 +25,15 @@ public class DocumentServiceImpl implements DocumentService {
     private static final Logger LOG = LoggerFactory.getLogger(DocumentServiceImpl.class);
     private final UserModelRepository userModelRepository;
     private final VerificationDocumentRepository verificationDocumentRepository;
+    private final VerificationDocumentMapper verificationDocumentMapper;
 
-    public DocumentServiceImpl(UserModelRepository userModelRepository, VerificationDocumentRepository verificationDocumentRepository) {
+    public DocumentServiceImpl(UserModelRepository userModelRepository,
+                               VerificationDocumentRepository verificationDocumentRepository,
+                               VerificationDocumentMapper verificationDocumentMapper
+    ) {
         this.userModelRepository = userModelRepository;
         this.verificationDocumentRepository = verificationDocumentRepository;
+        this.verificationDocumentMapper = verificationDocumentMapper;
     }
 
     @Override
@@ -41,26 +48,33 @@ public class DocumentServiceImpl implements DocumentService {
         UserModel user = getUserFromAuthentication(authentication);
         LOG.info("\n\n\nUploading documents {}\n",uploadedFiles);
         int successCount = 0;
-        int failedCount = 0;
+
+        if (!FilesValidatorUtils.areValidFiles(uploadedFiles, 1024*1024*30L, "pdf")) {
+            throw new FileHandlingException("A file is invalid, all files must be of type PDF and less than 30MB");
+        }
         verificationDocumentRepository.deleteAllByUser(user);
         for (MultipartFile file: uploadedFiles) {
             try {
-                if (FilesValidatorUtils.isValidFile(file, 1024 * 1024 * 10L, "pdf")) {
-                    VerificationDocument document = new VerificationDocument();
-                    document.setDocument(file.getBytes());
-                    document.setDocumentType(file.getContentType());
-                    document.setDocumentFileName(file.getOriginalFilename());
-                    document.setUser(user);
-                    verificationDocumentRepository.save(document);
-                    successCount++;
-                } else {
-                    failedCount++;
-                }
+                VerificationDocument document = new VerificationDocument();
+                document.setDocument(file.getBytes());
+                document.setDocumentType(file.getContentType());
+                document.setDocumentFileName(file.getOriginalFilename());
+                document.setUser(user);
+                verificationDocumentRepository.save(document);
+                successCount++;
             } catch (IOException e) {
-                throw new FileHandlingException("IO Error while reading files");
+                throw new FileHandlingException("IO An error occurred while reading files. Please try again later");
             }
         }
-        return Map.of("message", "Documents uploaded successfully", "successCount", String.valueOf(successCount), "failedCount", String.valueOf(failedCount));
+        return Map.of("message", "Documents uploaded successfully", "successCount", String.valueOf(successCount));
+    }
+
+    @Override
+    public List<VerificationDocumentDTO> getAllVerificationDocumentsByUser(Authentication authentication) {
+        UserModel user = getUserFromAuthentication(authentication);
+        List<VerificationDocument> documents = verificationDocumentRepository.findAllByUser(user);
+        LOG.info("First documents name {}",documents.get(0).getDocumentFileName());
+        return verificationDocumentMapper.mapToVerificationDocumentDTOs(documents);
     }
 
     protected UserModel getUserFromAuthentication(Authentication authentication) {

@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 
 public class FilesValidatorUtils {
     private static Logger LOG = LoggerFactory.getLogger(FilesValidatorUtils.class);
@@ -27,4 +28,13 @@ public class FilesValidatorUtils {
         }
 
     }
+
+    public static boolean areValidFiles(List<MultipartFile> files, Long maxSize, String fileType) {
+        for (MultipartFile file: files) {
+            if (!isValidFile(file, maxSize, fileType)) {
+                return false;
+            }
+        }
+        return true;
+    } 
 }
