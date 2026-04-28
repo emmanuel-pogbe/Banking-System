@@ -15,7 +15,6 @@ import com.pogbe.bankingsystem.services.interfaces.AesEncryptionService;
 import com.pogbe.bankingsystem.services.interfaces.UserService;
 import com.pogbe.bankingsystem.utils.*;
 
-import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -128,33 +127,18 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public GenericSuccessResponse updateProfilePicture(Authentication authentication, MultipartFile file) {
-
-        if (file == null || file.getContentType() == null) {
-            throw new IllegalArgumentException("Image file type is required");
+        if (FilesValidatorUtils.isValidFile(file, 1024*1024*10L, "image/")) {
+            throw new IllegalArgumentException("Invalid file type. File must be an image and less than 10MB.");
         }
-
-        if (file.getSize() > 1024*1024*10) {
-            throw new FileHandlingException("Image file size exceeds the limit of 10MB, consider compressing the image");
-        }
-        // checking a file type using a Tika library
-        final Tika tikaOb = new Tika();
-        byte[] imageFile;
-        try {
-            imageFile = file.getBytes();
-        } catch (IOException e) {
-            throw new FileHandlingException("Error while reading image file");
-        }
-        String fileType = tikaOb.detect(imageFile);
-        LOG.info("\n\nFile type: {}",fileType);
-        if (fileType == null || !fileType.startsWith("image/")) {
-            throw new FileHandlingException("Invalid file type. Only image files are allowed.");
-        }
-
         UserModel user = getUserFromAuthentication(authentication);
-        user.setProfilePicture(ImageUtils.compressImage(imageFile));
-        user.setProfilePictureContentType(file.getContentType());
-        userModelRepository.save(user);
-        return new GenericSuccessResponse("Profile picture updated successfully");
+        try {
+            user.setProfilePicture(ImageUtils.compressImage(file.getBytes()));
+            user.setProfilePictureContentType(file.getContentType());
+            userModelRepository.save(user);
+            return new GenericSuccessResponse("Profile picture updated successfully");
+        } catch (IOException e) {
+            throw new FileHandlingException("Error processing file");
+        }
     }
 
     @Override
