@@ -1,10 +1,13 @@
 package com.pogbe.bankingsystem.exceptions;
 
 import com.pogbe.bankingsystem.dto.responses.ErrorResponse;
+import com.pogbe.bankingsystem.exceptions.custom.FileHandlingException;
 import com.pogbe.bankingsystem.exceptions.custom.NullKeyStringException;
 import com.pogbe.bankingsystem.exceptions.custom.ResourceNotAvailable;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import org.apache.tomcat.util.http.fileupload.FileUploadException;
+import org.apache.tomcat.util.http.fileupload.impl.FileSizeLimitExceededException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -18,6 +21,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -28,7 +32,7 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(value = {DataIntegrityViolationException.class})
-    public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(DataIntegrityViolationException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(Exception ex, HttpServletRequest request) {
         ResponseEntity<ErrorResponse> result = buildErrorResponse(
                 "DATA_INTEGRITY_VIOLATION",
                 ex.getMessage(),
@@ -40,7 +44,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(value = {NullKeyStringException.class})
-    public ResponseEntity<ErrorResponse> handleNullKeyStringException(NullKeyStringException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponse> handleNullKeyStringException(Exception ex, HttpServletRequest request) {
         return buildErrorResponse(
                 "NULL_KEY_STRING",
                 ex.getMessage(),
@@ -62,7 +66,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(value = {HttpMessageNotReadableException.class})
-    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(Exception ex, HttpServletRequest request) {
         return buildErrorResponse(
                 "HTTP_MESSAGE_NOT_READABLE",
                 "Missing required request parameters",
@@ -72,7 +76,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(value = {HttpRequestMethodNotSupportedException.class})
-    public ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupportedException(Exception ex, HttpServletRequest request) {
         return buildErrorResponse(
                 "HTTP_REQUEST_METHOD_NOT_SUPPORTED",
                 ex.getMessage(),
@@ -82,7 +86,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(value = {IllegalArgumentException.class})
-    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex, HttpServletRequest request) {
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(Exception ex, HttpServletRequest request) {
         return buildErrorResponse(
                 "ILLEGAL_ARGUMENT",
                 ex.getMessage(),
@@ -90,6 +94,18 @@ public class GlobalExceptionHandler {
                 request
         );
     }
+
+    @ExceptionHandler(value = {FileHandlingException.class, FileSizeLimitExceededException.class, FileUploadException.class, MaxUploadSizeExceededException.class})
+    public ResponseEntity<ErrorResponse> handleFileHandlingExceptions(Exception ex, HttpServletRequest request) {
+        return buildErrorResponse(
+                "FILE_PROCESSING_ERROR",
+                ex.getMessage(),
+                HttpStatus.UNPROCESSABLE_CONTENT,
+                request
+        );
+    }
+
+
     @ExceptionHandler(value = {MissingServletRequestPartException.class})
     public ResponseEntity<ErrorResponse> handleMissingServletRequestPartException(MissingServletRequestPartException ex, HttpServletRequest request) {
         return buildErrorResponse(

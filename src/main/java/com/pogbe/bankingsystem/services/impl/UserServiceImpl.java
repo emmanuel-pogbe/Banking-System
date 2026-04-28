@@ -5,6 +5,7 @@ import com.pogbe.bankingsystem.dto.requests.UserLoginRequest;
 import com.pogbe.bankingsystem.dto.responses.GenericSuccessResponse;
 import com.pogbe.bankingsystem.dto.responses.SuccessUserCreatedResponse;
 import com.pogbe.bankingsystem.dto.responses.SuccessUserLoginResponse;
+import com.pogbe.bankingsystem.exceptions.custom.FileHandlingException;
 import com.pogbe.bankingsystem.exceptions.custom.ResourceNotAvailable;
 import com.pogbe.bankingsystem.mappers.UserMapper;
 import com.pogbe.bankingsystem.models.Account;
@@ -13,6 +14,10 @@ import com.pogbe.bankingsystem.repositories.UserModelRepository;
 import com.pogbe.bankingsystem.services.interfaces.AesEncryptionService;
 import com.pogbe.bankingsystem.services.interfaces.UserService;
 import com.pogbe.bankingsystem.utils.*;
+
+import org.apache.tika.Tika;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,6 +37,8 @@ public class UserServiceImpl implements UserService {
     private final AesEncryptionService aesEncryptionService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
+
+    private static final Logger LOG = LoggerFactory.getLogger(UserServiceImpl.class);
 
     public UserServiceImpl(UserModelRepository userModelRepository, AesEncryptionService aesEncryptionService, PasswordEncoder passwordEncoder, JwtUtils jwtUtils) {
         this.userModelRepository = userModelRepository;
@@ -53,7 +61,7 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("Phone number must be between 10 and 12 digits long");
         }
         if (!PasswordValidatorUtils.isValidPassword(userCreateRequest.getPassword())) {
-            throw new IllegalArgumentException("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character");
+            throw new IllegalArgumentException(PasswordValidatorUtils.getInvalidPasswordMessage());
         }
 
         // checking if a username or phone number already exists
@@ -86,8 +94,6 @@ public class UserServiceImpl implements UserService {
         return new SuccessUserCreatedResponse(savedUser.getUsername(), generatedAccountNumber);
     }
 
-
-
     @Override
     public SuccessUserLoginResponse loginUser(UserLoginRequest userLoginRequest) {
         // some basic validation
@@ -95,7 +101,7 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("Username must be at least 3 characters long and can't contain only numbers");
         }
         if (!PasswordValidatorUtils.isValidPassword(userLoginRequest.getPassword())) {
-            throw new IllegalArgumentException("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one digit, and one special character");
+            throw new IllegalArgumentException(PasswordValidatorUtils.getInvalidPasswordMessage());
         }
 
         Optional<UserModel> userModel = userModelRepository.findByUsername(userLoginRequest.getUsername());
@@ -126,17 +132,28 @@ public class UserServiceImpl implements UserService {
         if (file == null || file.getContentType() == null) {
             throw new IllegalArgumentException("Image file type is required");
         }
-        if (!file.getContentType().startsWith("image/")) {
-            throw new IllegalArgumentException("Invalid file type. Only image files are allowed.");
+
+        if (file.getSize() > 1024*1024*10) {
+            throw new FileHandlingException("Image file size exceeds the limit of 10MB, consider compressing the image");
         }
-        UserModel user = getUserFromAuthentication(authentication);
+        // checking a file type using a Tika library
+        final Tika tikaOb = new Tika();
+        byte[] imageFile;
         try {
-            user.setProfilePicture(ImageUtils.compressImage(file.getBytes()));
-            user.setProfilePictureContentType(file.getContentType());
-            userModelRepository.save(user);
-        } catch (Exception e) {
-            throw new RuntimeException("Error while uploading profile picture");
+            imageFile = file.getBytes();
+        } catch (IOException e) {
+            throw new FileHandlingException("Error while reading image file");
         }
+        String fileType = tikaOb.detect(imageFile);
+        LOG.info("\n\nFile type: {}",fileType);
+        if (fileType == null || !fileType.startsWith("image/")) {
+            throw new FileHandlingException("Invalid file type. Only image files are allowed.");
+        }
+
+        UserModel user = getUserFromAuthentication(authentication);
+        user.setProfilePicture(ImageUtils.compressImage(imageFile));
+        user.setProfilePictureContentType(file.getContentType());
+        userModelRepository.save(user);
         return new GenericSuccessResponse("Profile picture updated successfully");
     }
 
@@ -147,7 +164,6 @@ public class UserServiceImpl implements UserService {
         if (imageData == null) {
             throw new ResourceNotAvailable("Profile picture not set");
         }
-        
         return ImageUtils.decompressImage(imageData);
     }
 
