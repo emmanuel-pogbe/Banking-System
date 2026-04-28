@@ -51,7 +51,7 @@ public class TransactionsController {
 		return ResponseEntity
 				.ok()
 				.contentType(MediaType.TEXT_PLAIN)
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=transactions.txt")
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=transactions.csv")
 				.body(new FileSystemResource(exportFile));
 	}
 }

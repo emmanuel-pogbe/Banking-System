@@ -1,5 +1,6 @@
 package com.pogbe.bankingsystem.services.impl;
 
+import com.opencsv.CSVWriter;
 import com.pogbe.bankingsystem.constants.TransactionType;
 import com.pogbe.bankingsystem.dto.requests.TransactionGenerationRequest;
 import com.pogbe.bankingsystem.dto.responses.PaginatedTransactionRecordsResponse;
@@ -95,20 +96,21 @@ public class TransactionRecordGenerationServiceImpl implements TransactionRecord
 	public File getAllAccountRecordsForExport(Authentication authentication) {
 		Account account = getSenderAccount(authentication);
 		List<TransactionRecord> allTransactions = transactionRecordRepository.findFullStatementByAccountId(account.getId());
-		File file = new File("transactions.txt");
-		try {
+		File file = new File("transactions.csv");
+		try (CSVWriter csvWriter = new CSVWriter(new FileWriter(file))) {
 			if (!file.exists() && !file.createNewFile()) {
 				throw new IOException("Could not create export file");
 			}
-			try (FileWriter writer = new FileWriter(file)) {
-				writer.write("Transaction Reference,Transaction Type,Description,Amount,Date\n");
-				for (TransactionRecord transaction : allTransactions) {
-					writer.write(transaction.getTransactionReference() + ","
-							+ transaction.getTransactionType() + ","
-							+ transaction.getDescription() + ","
-							+ transaction.getAmount() + ","
-							+ transaction.getDate() + "\n");
-				}
+			String[] headers = {"Transaction Reference","Transaction Type","Description","Amount","Date"};
+			csvWriter.writeNext(headers);
+			for (TransactionRecord transaction : allTransactions) {
+				String[] row = {transaction.getTransactionReference(),
+						transaction.getTransactionType().toString(),
+						transaction.getDescription(),
+						transaction.getAmount().toString(),
+						transaction.getDate().toString()
+				};
+				csvWriter.writeNext(row);
 			}
 		} catch (IOException e) {
 			throw new RuntimeException("Failed to generate transaction export file", e);
