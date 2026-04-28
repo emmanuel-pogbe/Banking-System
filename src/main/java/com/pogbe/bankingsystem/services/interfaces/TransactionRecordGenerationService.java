@@ -13,5 +13,5 @@ public interface TransactionRecordGenerationService {
             TransactionGenerationRequest transactionGenerationRequest
 	);
 
-	File getAllAccountRecordsForExport(Authentication authentication);
+	byte[] getAllAccountRecordsForExport(Authentication authentication);
 }

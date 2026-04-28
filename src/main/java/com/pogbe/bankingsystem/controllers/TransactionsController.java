@@ -43,15 +43,15 @@ public class TransactionsController {
 
 
 	@GetMapping("/records/export")
-	public ResponseEntity<Resource> getAllAccountRecordsForExport(
+	public ResponseEntity<byte[]> getAllAccountRecordsForExport(
             @ModelAttribute TransactionGenerationRequest transactionGenerationRequest,
 			Authentication authentication
 	) {
-		File exportFile = transactionRecordGenerationService.getAllAccountRecordsForExport(authentication);
+		byte[] exportFile = transactionRecordGenerationService.getAllAccountRecordsForExport(authentication);
 		return ResponseEntity
 				.ok()
 				.contentType(MediaType.TEXT_PLAIN)
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=transactions.csv")
-				.body(new FileSystemResource(exportFile));
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=transactions1.csv")
+				.body(exportFile);
 	}
 }

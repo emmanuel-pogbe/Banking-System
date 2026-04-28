@@ -22,9 +22,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -93,14 +91,12 @@ public class TransactionRecordGenerationServiceImpl implements TransactionRecord
 	}
 
 	@Override
-	public File getAllAccountRecordsForExport(Authentication authentication) {
+	public byte[] getAllAccountRecordsForExport(Authentication authentication) {
 		Account account = getSenderAccount(authentication);
 		List<TransactionRecord> allTransactions = transactionRecordRepository.findFullStatementByAccountId(account.getId());
-		File file = new File("transactions.csv");
-		try (CSVWriter csvWriter = new CSVWriter(new FileWriter(file))) {
-			if (!file.exists() && !file.createNewFile()) {
-				throw new IOException("Could not create export file");
-			}
+		File file = new File("transactions1.csv");
+		try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+			 CSVWriter csvWriter = new CSVWriter(new OutputStreamWriter(outputStream))) {
 			String[] headers = {"Transaction Reference","Transaction Type","Description","Amount","Date"};
 			csvWriter.writeNext(headers);
 			for (TransactionRecord transaction : allTransactions) {
@@ -112,10 +108,12 @@ public class TransactionRecordGenerationServiceImpl implements TransactionRecord
 				};
 				csvWriter.writeNext(row);
 			}
+			csvWriter.flush();
+			return outputStream.toByteArray();
 		} catch (IOException e) {
 			throw new RuntimeException("Failed to generate transaction export file", e);
 		}
-		return file;
+		
 	}
 
 	private Account getSenderAccount(Authentication authentication) {
