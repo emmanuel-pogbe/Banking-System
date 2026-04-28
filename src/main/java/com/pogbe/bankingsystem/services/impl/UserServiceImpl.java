@@ -173,6 +173,15 @@ public class UserServiceImpl implements UserService {
         return user.getProfilePictureContentType() == null ? "image/jpeg" : user.getProfilePictureContentType();
     }
 
+    @Override
+    public GenericSuccessResponse deleteProfilePicture(Authentication authentication) {
+        UserModel user = getUserFromAuthentication(authentication);
+        user.setProfilePicture(null);
+        user.setProfilePictureContentType(null);
+        userModelRepository.save(user);
+        return new GenericSuccessResponse("Profile picture deleted successfully");
+    }
+
     private boolean properUsernameFormat(String username) {
         return username.length() >= 3 && !NumericUtils.isNumeric(username);
     }

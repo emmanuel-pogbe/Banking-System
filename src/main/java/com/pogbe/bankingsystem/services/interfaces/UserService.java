@@ -18,4 +18,6 @@ public interface UserService {
     byte[] getProfilePicture(Authentication authentication);
 
     String getProfilePictureContentType(Authentication authentication);
+
+    GenericSuccessResponse deleteProfilePicture(Authentication authentication);
 }

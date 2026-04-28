@@ -83,4 +83,9 @@ public class UserController {
                 .contentType(MediaType.parseMediaType(contentType))
                 .body(imageBytes);
     }
+
+    @DeleteMapping("profile/picture")
+    public ResponseEntity<GenericSuccessResponse> deleteProfilePicture(Authentication authentication) {
+        return ResponseEntity.ok(userService.deleteProfilePicture(authentication));
+    }
 }
