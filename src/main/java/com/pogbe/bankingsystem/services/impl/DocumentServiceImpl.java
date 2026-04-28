@@ -93,7 +93,7 @@ public class DocumentServiceImpl implements DocumentService {
         }
         return documentFileDTO;
     }
-    
+
     protected UserModel getUserFromAuthentication(Authentication authentication) {
         return userModelRepository.findByUsername(authentication.getName()).orElseThrow(()->new IllegalArgumentException("Authentication failed: Invalid username or password"));
     }

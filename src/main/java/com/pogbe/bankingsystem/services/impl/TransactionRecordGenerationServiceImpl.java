@@ -12,6 +12,8 @@ import com.pogbe.bankingsystem.repositories.TransactionRecordRepository;
 import com.pogbe.bankingsystem.repositories.UserModelRepository;
 import com.pogbe.bankingsystem.services.interfaces.TransactionRecordGenerationService;
 import io.jsonwebtoken.Claims;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -19,11 +21,14 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 
 @Service
 public class TransactionRecordGenerationServiceImpl implements TransactionRecordGenerationService {
@@ -31,6 +36,8 @@ public class TransactionRecordGenerationServiceImpl implements TransactionRecord
 	private final AccountRepository accountRepository;
 	private final UserModelRepository userModelRepository;
 	private final TransactionRecordRepository transactionRecordRepository;
+
+	private static final Logger LOG = LoggerFactory.getLogger(TransactionRecordGenerationServiceImpl.class);
 
 	public TransactionRecordGenerationServiceImpl(
 			AccountRepository accountRepository,
@@ -82,6 +89,31 @@ public class TransactionRecordGenerationServiceImpl implements TransactionRecord
 				records.hasNext(),
 				records.hasPrevious()
 		);
+	}
+
+	@Override
+	public File getAllAccountRecordsForExport(Authentication authentication) {
+		Account account = getSenderAccount(authentication);
+		List<TransactionRecord> allTransactions = transactionRecordRepository.findFullStatementByAccountId(account.getId());
+		File file = new File("transactions.txt");
+		try {
+			if (!file.exists() && !file.createNewFile()) {
+				throw new IOException("Could not create export file");
+			}
+			try (FileWriter writer = new FileWriter(file)) {
+				writer.write("Transaction Reference,Transaction Type,Description,Amount,Date\n");
+				for (TransactionRecord transaction : allTransactions) {
+					writer.write(transaction.getTransactionReference() + ","
+							+ transaction.getTransactionType() + ","
+							+ transaction.getDescription() + ","
+							+ transaction.getAmount() + ","
+							+ transaction.getDate() + "\n");
+				}
+			}
+		} catch (IOException e) {
+			throw new RuntimeException("Failed to generate transaction export file", e);
+		}
+		return file;
 	}
 
 	private Account getSenderAccount(Authentication authentication) {

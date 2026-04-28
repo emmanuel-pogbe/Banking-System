@@ -5,12 +5,19 @@ import com.pogbe.bankingsystem.dto.responses.PaginatedTransactionRecordsResponse
 import com.pogbe.bankingsystem.services.interfaces.TransactionRecordGenerationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.io.File;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/transactions")
@@ -32,5 +39,19 @@ public class TransactionsController {
 		return ResponseEntity.ok(
 				transactionRecordGenerationService.getAccountRecords(authentication, transactionGenerationRequest)
 		);
+	}
+
+
+	@GetMapping("/records/export")
+	public ResponseEntity<Resource> getAllAccountRecordsForExport(
+            @ModelAttribute TransactionGenerationRequest transactionGenerationRequest,
+			Authentication authentication
+	) {
+		File exportFile = transactionRecordGenerationService.getAllAccountRecordsForExport(authentication);
+		return ResponseEntity
+				.ok()
+				.contentType(MediaType.TEXT_PLAIN)
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=transactions.txt")
+				.body(new FileSystemResource(exportFile));
 	}
 }

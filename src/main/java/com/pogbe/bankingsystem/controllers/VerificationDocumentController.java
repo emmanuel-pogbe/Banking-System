@@ -5,7 +5,6 @@ import java.util.Map;
 
 import com.pogbe.bankingsystem.dto.responses.DocumentFileDTO;
 import com.pogbe.bankingsystem.dto.responses.VerificationDocumentDTO;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;

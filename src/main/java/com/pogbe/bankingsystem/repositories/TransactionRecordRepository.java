@@ -1,6 +1,7 @@
 package com.pogbe.bankingsystem.repositories;
 
 import com.pogbe.bankingsystem.constants.TransactionType;
+import com.pogbe.bankingsystem.models.Account;
 import com.pogbe.bankingsystem.models.TransactionRecord;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -10,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 public interface TransactionRecordRepository extends JpaRepository<TransactionRecord, Long> {
@@ -32,4 +34,7 @@ public interface TransactionRecordRepository extends JpaRepository<TransactionRe
             @Param("endDateTime") LocalDateTime endDateTime,
             Pageable pageable
     );
+
+    @Query("SELECT tr FROM TransactionRecord tr WHERE tr.senderAccount.id = :accountId OR tr.receiverAccount.id = :accountId")
+    List<TransactionRecord> findFullStatementByAccountId(Long accountId);
 }

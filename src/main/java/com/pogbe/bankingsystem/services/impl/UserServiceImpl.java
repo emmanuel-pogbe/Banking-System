@@ -15,8 +15,6 @@ import com.pogbe.bankingsystem.services.interfaces.AesEncryptionService;
 import com.pogbe.bankingsystem.services.interfaces.UserService;
 import com.pogbe.bankingsystem.utils.*;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,8 +34,6 @@ public class UserServiceImpl implements UserService {
     private final AesEncryptionService aesEncryptionService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
-
-    private static final Logger LOG = LoggerFactory.getLogger(UserServiceImpl.class);
 
     public UserServiceImpl(UserModelRepository userModelRepository, AesEncryptionService aesEncryptionService, PasswordEncoder passwordEncoder, JwtUtils jwtUtils) {
         this.userModelRepository = userModelRepository;
