@@ -2,6 +2,7 @@ package com.pogbe.bankingsystem.services.impl;
 
 import com.pogbe.bankingsystem.constants.TransactionType;
 import com.pogbe.bankingsystem.dto.requests.TransferMoneyRequest;
+import com.pogbe.bankingsystem.dto.responses.BanksListApiDTO;
 import com.pogbe.bankingsystem.dto.responses.SuccessTransfer;
 import com.pogbe.bankingsystem.dto.responses.UserAccountInformation;
 import com.pogbe.bankingsystem.exceptions.custom.ResourceNotAvailable;
@@ -19,8 +20,13 @@ import jakarta.transaction.Transactional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -36,6 +42,12 @@ public class TransactionServiceImpl implements TransactionService {
     private final AesEncryptionService aesEncryptionService;
 
     private static final Logger log = LoggerFactory.getLogger(TransactionServiceImpl.class);
+
+    @Value("${kora.base}")
+    String koraBaseUrl;
+
+    @Value("${kora.public}")
+    String koraPublicKey;
 
     public TransactionServiceImpl(
             AccountRepository accountRepository,
@@ -185,5 +197,14 @@ public class TransactionServiceImpl implements TransactionService {
             );
     }
 
-
+    @Override
+    public BanksListApiDTO getListOfSupportedBanks() {
+        String bankUrl = koraBaseUrl + "/banks?countryCode=NG";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(koraPublicKey);
+        System.out.println(koraPublicKey);
+        HttpEntity<String> requestEntity = new HttpEntity<>(headers);
+        RestTemplate request = new RestTemplate();
+        return request.exchange(bankUrl, HttpMethod.GET,requestEntity,BanksListApiDTO.class).getBody();
+    }
 }
