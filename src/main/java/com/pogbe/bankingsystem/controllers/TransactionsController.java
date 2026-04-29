@@ -5,19 +5,12 @@ import com.pogbe.bankingsystem.dto.responses.PaginatedTransactionRecordsResponse
 import com.pogbe.bankingsystem.services.interfaces.TransactionRecordGenerationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.io.File;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/transactions")
@@ -44,14 +37,27 @@ public class TransactionsController {
 
 	@GetMapping("/records/export")
 	public ResponseEntity<byte[]> getAllAccountRecordsForExport(
-            @ModelAttribute TransactionGenerationRequest transactionGenerationRequest,
+			@RequestParam(name = "type", required = false) String type,
 			Authentication authentication
 	) {
-		byte[] exportFile = transactionRecordGenerationService.getAllAccountRecordsForExport(authentication);
+
+		byte[] exportFile = transactionRecordGenerationService.getAllAccountRecordsForExport(authentication, type);
+		// defaults
+		MediaType mediaType = MediaType.TEXT_PLAIN;
+		String filename = "transactions.csv";
+
+		if (type != null && type.equalsIgnoreCase("pdf")) {
+			mediaType = MediaType.APPLICATION_PDF;
+			filename = "transactions.pdf";
+		} else if (type != null && (type.equalsIgnoreCase("csv") || type.isBlank())) {
+			mediaType = MediaType.TEXT_PLAIN;
+			filename = "transactions.csv";
+		}
+
 		return ResponseEntity
 				.ok()
-				.contentType(MediaType.TEXT_PLAIN)
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=transactions1.csv")
+				.contentType(mediaType)
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
 				.body(exportFile);
 	}
 }

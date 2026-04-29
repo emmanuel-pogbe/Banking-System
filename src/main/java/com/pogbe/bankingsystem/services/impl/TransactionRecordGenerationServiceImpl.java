@@ -21,13 +21,24 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import com.lowagie.text.Document;
+import com.lowagie.text.Font;
+import com.lowagie.text.FontFactory;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
 
-import java.io.*;
+import java.awt.Color;
+import java.util.List;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
-import java.util.List;
 
 @Service
 public class TransactionRecordGenerationServiceImpl implements TransactionRecordGenerationService {
@@ -91,24 +102,52 @@ public class TransactionRecordGenerationServiceImpl implements TransactionRecord
 	}
 
 	@Override
-	public byte[] getAllAccountRecordsForExport(Authentication authentication) {
+	public byte[] getAllAccountRecordsForExport(Authentication authentication, String type) {
 		Account account = getSenderAccount(authentication);
 		List<TransactionRecord> allTransactions = transactionRecordRepository.findFullStatementByAccountId(account.getId());
-		File file = new File("transactions1.csv");
-		try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-			 CSVWriter csvWriter = new CSVWriter(new OutputStreamWriter(outputStream))) {
-			String[] headers = {"Transaction Reference","Transaction Type","Description","Amount","Date"};
-			csvWriter.writeNext(headers);
-			for (TransactionRecord transaction : allTransactions) {
-				String[] row = {transaction.getTransactionReference(),
-						transaction.getTransactionType().toString(),
-						transaction.getDescription(),
-						transaction.getAmount().toString(),
-						transaction.getDate().toString()
-				};
-				csvWriter.writeNext(row);
+		try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+			if (type!=null && type.equals("pdf")) {
+				Document doc = new Document();
+				PdfWriter.getInstance(doc, outputStream);
+				doc.open();
+				Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Color.WHITE);
+				Font cellFont = FontFactory.getFont(FontFactory.HELVETICA, 10, Color.BLACK);
+				PdfPTable table = new PdfPTable(5);
+				table.setWidthPercentage(100);
+				String[] headers = {"Transaction Reference","Transaction Type","Description","Amount","Date"};
+				for (String h : headers) {
+					PdfPCell headerCell = new PdfPCell(new Phrase(h, headerFont));
+					headerCell.setBackgroundColor(Color.GRAY);
+					headerCell.setPadding(6);
+					table.addCell(headerCell);
+				}
+				for (TransactionRecord transaction : allTransactions) {
+					table.addCell(new PdfPCell(new Phrase(transaction.getTransactionReference(), cellFont)));
+					table.addCell(new PdfPCell(new Phrase(transaction.getTransactionType() == null ? "" : transaction.getTransactionType().toString(), cellFont)));
+					table.addCell(new PdfPCell(new Phrase(transaction.getDescription() == null ? "" : transaction.getDescription(), cellFont)));
+					table.addCell(new PdfPCell(new Phrase(transaction.getAmount() == null ? "" : transaction.getAmount().toString(), cellFont)));
+					table.addCell(new PdfPCell(new Phrase(transaction.getDate() == null ? "" : transaction.getDate().toString(), cellFont)));
+				}
+				doc.add(new Paragraph("Transaction report"));
+				doc.add(new Paragraph("Generated on: " + LocalDate.now()));
+				doc.add(table);
+				doc.close();
+			} else {
+				CSVWriter csvWriter = new CSVWriter(new OutputStreamWriter(outputStream));
+				String[] headers = {"Transaction Reference","Transaction Type","Description","Amount","Date"};
+				csvWriter.writeNext(headers);
+				for (TransactionRecord transaction : allTransactions) {
+					String[] row = {transaction.getTransactionReference(),
+							transaction.getTransactionType().toString(),
+							transaction.getDescription(),
+							transaction.getAmount().toString(),
+							transaction.getDate().toString()
+					};
+					csvWriter.writeNext(row);
+				}
+				csvWriter.flush();
 			}
-			csvWriter.flush();
+
 			return outputStream.toByteArray();
 		} catch (IOException e) {
 			throw new RuntimeException("Failed to generate transaction export file", e);
