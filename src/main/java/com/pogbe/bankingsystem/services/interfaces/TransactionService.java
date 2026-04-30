@@ -1,5 +1,6 @@
 package com.pogbe.bankingsystem.services.interfaces;
 
+import com.pogbe.bankingsystem.dto.requests.BulkTransferRequestDTO;
 import com.pogbe.bankingsystem.dto.requests.TransferMoneyRequest;
 import com.pogbe.bankingsystem.dto.responses.BanksListApiDTO;
 import com.pogbe.bankingsystem.dto.responses.SuccessTransfer;
@@ -21,4 +22,6 @@ public interface TransactionService {
     UserAccountInformation getUserAccountInformation(String accountNumber);
 
     BanksListApiDTO getListOfSupportedBanks();
+
+    SuccessTransfer bulkTransfer(Authentication authentication, BulkTransferRequestDTO bulkTransferRequestDTO);
 }

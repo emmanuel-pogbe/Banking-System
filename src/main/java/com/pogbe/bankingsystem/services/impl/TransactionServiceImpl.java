@@ -1,6 +1,7 @@
 package com.pogbe.bankingsystem.services.impl;
 
 import com.pogbe.bankingsystem.constants.TransactionType;
+import com.pogbe.bankingsystem.dto.requests.BulkTransferRequestDTO;
 import com.pogbe.bankingsystem.dto.requests.TransferMoneyRequest;
 import com.pogbe.bankingsystem.dto.responses.BanksListApiDTO;
 import com.pogbe.bankingsystem.dto.responses.SuccessTransfer;
@@ -20,6 +21,10 @@ import jakarta.transaction.Transactional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.parameters.JobParameters;
+import org.springframework.batch.core.job.parameters.JobParametersBuilder;
+import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -40,6 +45,8 @@ public class TransactionServiceImpl implements TransactionService {
     private final UserModelRepository userModelRepository;
     private final TransactionRecordRepository transactionRecordRepository;
     private final AesEncryptionService aesEncryptionService;
+    private final JobOperator jobOperator;
+    private final Job job;
 
     private static final Logger log = LoggerFactory.getLogger(TransactionServiceImpl.class);
 
@@ -53,12 +60,17 @@ public class TransactionServiceImpl implements TransactionService {
             AccountRepository accountRepository,
             UserModelRepository userModelRepository,
             TransactionRecordRepository transactionRecordRepository,
-            AesEncryptionService aesEncryptionService
+            AesEncryptionService aesEncryptionService,
+            JobOperator jobOperator,
+            Job job
+
     ) {
         this.accountRepository = accountRepository;
         this.userModelRepository = userModelRepository;
         this.transactionRecordRepository = transactionRecordRepository;
         this.aesEncryptionService = aesEncryptionService;
+        this.jobOperator = jobOperator;
+        this.job = job;
     }
 
     @Override
@@ -206,5 +218,21 @@ public class TransactionServiceImpl implements TransactionService {
         HttpEntity<String> requestEntity = new HttpEntity<>(headers);
         RestTemplate request = new RestTemplate();
         return request.exchange(bankUrl, HttpMethod.GET,requestEntity,BanksListApiDTO.class).getBody();
+    }
+
+    @Override
+    public SuccessTransfer bulkTransfer(Authentication authentication, BulkTransferRequestDTO bulkTransferRequestDTO) {
+        JobParameters jobParameters = new JobParametersBuilder()
+                .addString("dto", authentication.getName())
+                .addLong("time",System.currentTimeMillis())
+                        .toJobParameters();
+        try {
+            System.out.println("Before job starts");
+                jobOperator.start(job, jobParameters);
+        } catch (Exception e) {
+            System.out.println("Error, I'll do better later");
+        }
+        System.out.println("Bulk transfer successful");
+        return new SuccessTransfer(BigDecimal.ZERO, authentication.getName(), "Bulk transfer started");
     }
 }

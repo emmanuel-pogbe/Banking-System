@@ -14,5 +14,4 @@ public interface DocumentService {
     List<VerificationDocumentDTO> getAllVerificationDocumentsByUser(Authentication authentication);
 
     DocumentFileDTO getVerificationDocumentById(Long id, Authentication authentication);
-
 }

@@ -46,7 +46,6 @@ public class TransactionsController {
 			@RequestParam(name = "type", required = false) String type,
 			Authentication authentication
 	) {
-
 		byte[] exportFile = transactionRecordGenerationService.getAllAccountRecordsForExport(authentication, type);
 		// defaults
 		MediaType mediaType = MediaType.TEXT_PLAIN;
@@ -59,7 +58,6 @@ public class TransactionsController {
 			mediaType = MediaType.TEXT_PLAIN;
 			filename = "transactions.csv";
 		}
-		
 		return ResponseEntity
 				.ok()
 				.contentType(mediaType)

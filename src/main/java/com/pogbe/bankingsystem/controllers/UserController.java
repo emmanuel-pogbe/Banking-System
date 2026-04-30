@@ -1,9 +1,6 @@
 package com.pogbe.bankingsystem.controllers;
 
-import com.pogbe.bankingsystem.dto.requests.TransferMoneyRequest;
-import com.pogbe.bankingsystem.dto.requests.UserAccountNumberRequest;
-import com.pogbe.bankingsystem.dto.requests.UserCreateRequest;
-import com.pogbe.bankingsystem.dto.requests.UserLoginRequest;
+import com.pogbe.bankingsystem.dto.requests.*;
 import com.pogbe.bankingsystem.dto.responses.*;
 import com.pogbe.bankingsystem.services.impl.TransactionServiceImpl;
 import com.pogbe.bankingsystem.services.interfaces.TransactionService;
@@ -61,6 +58,12 @@ public class UserController {
     @SecurityRequirement(name = "Bearer Authentication")
     public ResponseEntity<SuccessTransfer> transferMoney(@RequestBody TransferMoneyRequest transferMoneyRequest, Authentication authentication) {
         return ResponseEntity.ok(transactionService.transfer(authentication, transferMoneyRequest));
+    }
+
+    @PostMapping("/transfer/batch")
+    @SecurityRequirement(name = "Bearer Authentication")
+    public ResponseEntity<SuccessTransfer> transferMoneyBatch(@RequestBody BulkTransferRequestDTO bulkTransferRequestDTO, Authentication authentication) {
+        return ResponseEntity.ok(transactionService.bulkTransfer(authentication, bulkTransferRequestDTO));
     }
 
     @Operation(summary = "Get username of user based on account number", description = "Get account username based on the account number")
