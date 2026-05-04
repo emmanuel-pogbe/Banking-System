@@ -1,8 +1,10 @@
 package com.pogbe.bankingsystem.services.interfaces;
 
+import com.pogbe.bankingsystem.dto.requests.BankAccountResolveRequest;
 import com.pogbe.bankingsystem.dto.requests.BulkTransferRequestDTO;
 import com.pogbe.bankingsystem.dto.requests.TransferMoneyDTO;
 import com.pogbe.bankingsystem.dto.requests.TransferMoneyRequest;
+import com.pogbe.bankingsystem.dto.responses.BankAccountResolveResponse;
 import com.pogbe.bankingsystem.dto.responses.BanksListApiDTO;
 import com.pogbe.bankingsystem.dto.responses.BulkTransferReportResponseDTO;
 import com.pogbe.bankingsystem.dto.responses.SuccessTransfer;
@@ -31,4 +33,6 @@ public interface TransactionService {
     Map<String,String> transferLogic(Account senderAccount, TransferMoneyRequest transferMoneyRequest);
 
     Map<String,String> transferLogicWithoutPin(Account senderAccount, TransferMoneyDTO transferMoneyDTO);
+
+    BankAccountResolveResponse getResolvedTransaction(BankAccountResolveRequest bankAccountResolveRequest);
 }

@@ -1,6 +1,8 @@
 package com.pogbe.bankingsystem.controllers;
 
+import com.pogbe.bankingsystem.dto.requests.BankAccountResolveRequest;
 import com.pogbe.bankingsystem.dto.requests.TransactionGenerationRequest;
+import com.pogbe.bankingsystem.dto.responses.BankAccountResolveResponse;
 import com.pogbe.bankingsystem.dto.responses.BanksListApiDTO;
 import com.pogbe.bankingsystem.dto.responses.PaginatedTransactionRecordsResponse;
 import com.pogbe.bankingsystem.services.interfaces.TransactionRecordGenerationService;
@@ -13,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 
 
 @RestController
@@ -67,5 +70,10 @@ public class TransactionsController {
 	@GetMapping("/banks")
 	public ResponseEntity<BanksListApiDTO> getListOfSupportedBanks() {
 		return ResponseEntity.ok(transactionService.getListOfSupportedBanks());
+	}
+
+	@GetMapping("/resolved")
+	public ResponseEntity<BankAccountResolveResponse> getResolvedTransaction(@ModelAttribute("transactionId") BankAccountResolveRequest bankAccountResolveRequest) {
+		return ResponseEntity.ok(transactionService.getResolvedTransaction(bankAccountResolveRequest));
 	}
 }

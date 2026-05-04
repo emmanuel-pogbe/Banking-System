@@ -3,13 +3,11 @@ package com.pogbe.bankingsystem.services.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pogbe.bankingsystem.constants.TransactionType;
+import com.pogbe.bankingsystem.dto.requests.BankAccountResolveRequest;
 import com.pogbe.bankingsystem.dto.requests.BulkTransferRequestDTO;
 import com.pogbe.bankingsystem.dto.requests.TransferMoneyDTO;
 import com.pogbe.bankingsystem.dto.requests.TransferMoneyRequest;
-import com.pogbe.bankingsystem.dto.responses.BanksListApiDTO;
-import com.pogbe.bankingsystem.dto.responses.BulkTransferReportResponseDTO;
-import com.pogbe.bankingsystem.dto.responses.SuccessTransfer;
-import com.pogbe.bankingsystem.dto.responses.UserAccountInformation;
+import com.pogbe.bankingsystem.dto.responses.*;
 import com.pogbe.bankingsystem.exceptions.custom.ResourceNotAvailable;
 import com.pogbe.bankingsystem.models.Account;
 import com.pogbe.bankingsystem.models.TransactionRecord;
@@ -41,6 +39,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import org.springframework.web.util.UriComponents;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -289,6 +289,45 @@ public class TransactionServiceImpl implements TransactionService {
             throw new RuntimeException("Bulk transfer failed, please try again in 1 minute", e);
         }
         
+    }
+
+    @Override
+    public BankAccountResolveResponse getResolvedTransaction(BankAccountResolveRequest bankAccountResolveRequest) {
+        if (bankAccountResolveRequest.getAccount() == null || bankAccountResolveRequest.getBank() == null) {
+            throw new IllegalArgumentException("Account number and bank code are required");
+        }
+        if (bankAccountResolveRequest.getAccount().length()!=10 || !NumericUtils.isNumeric(bankAccountResolveRequest.getAccount())) {
+            throw new IllegalArgumentException("Account number must be of length 10");   
+        }
+        if (bankAccountResolveRequest.getBank().length()>6 || !NumericUtils.isNumeric(bankAccountResolveRequest.getBank())) {
+            throw new IllegalArgumentException("Invalid bank code");
+        }
+        RestTemplate restTemplate = new RestTemplate();
+        HttpEntity<Object> httpEntity = new HttpEntity<>(bankAccountResolveRequest);
+
+        UriComponents uriComponentsBuilder = UriComponentsBuilder.fromUriString(koraBaseUrl)
+                .path("/banks/resolve")
+                .build();
+        log.info("URI: {}", uriComponentsBuilder.toUriString());
+        BankAccountResolveApiResponse apiResponse = restTemplate
+                .exchange(
+                        uriComponentsBuilder.toUriString(),
+                        HttpMethod.POST,
+                        httpEntity,
+                        BankAccountResolveApiResponse.class
+                )
+                .getBody();
+
+        if (apiResponse == null) {
+            throw new RuntimeException("Empty response from bank resolve API");
+        }
+        if (Boolean.FALSE.equals(apiResponse.getStatus())) {
+            throw new RuntimeException(apiResponse.getMessage() == null ? "Bank resolve API returned failure" : apiResponse.getMessage());
+        }
+        if (apiResponse.getData() == null) {
+            throw new RuntimeException("Bank resolve API did not return account data");
+        }
+        return apiResponse.getData();
     }
 
     private Throwable getRootCause(Throwable throwable) {
