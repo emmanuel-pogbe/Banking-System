@@ -30,7 +30,6 @@ import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobOperator;
-import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.context.ApplicationContext;
 import com.pogbe.bankingsystem.batch.BulkTransferReportHolder;
 import org.springframework.beans.factory.annotation.Value;
@@ -56,7 +55,6 @@ public class TransactionServiceImpl implements TransactionService {
     private final TransactionRecordRepository transactionRecordRepository;
     private final AesEncryptionService aesEncryptionService;
     private final JobOperator jobOperator;
-    private final JobLauncher jobLauncher;
     private final ApplicationContext applicationContext;
 
     private static final Logger log = LoggerFactory.getLogger(TransactionServiceImpl.class);
@@ -73,7 +71,6 @@ public class TransactionServiceImpl implements TransactionService {
             TransactionRecordRepository transactionRecordRepository,
             AesEncryptionService aesEncryptionService,
             JobOperator jobOperator,
-            JobLauncher jobLauncher,
             ApplicationContext applicationContext
 
     ) {
@@ -82,7 +79,6 @@ public class TransactionServiceImpl implements TransactionService {
         this.transactionRecordRepository = transactionRecordRepository;
         this.aesEncryptionService = aesEncryptionService;
         this.jobOperator = jobOperator;
-        this.jobLauncher = jobLauncher;
         this.applicationContext = applicationContext;
     }
 

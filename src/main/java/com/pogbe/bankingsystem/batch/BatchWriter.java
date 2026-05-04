@@ -14,10 +14,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
-import com.pogbe.bankingsystem.batch.BulkTransferReportHolder;
-
-import java.math.BigDecimal;
-
 @Component
 @StepScope
 public class BatchWriter implements ItemWriter<TransferMoneyDTO> {

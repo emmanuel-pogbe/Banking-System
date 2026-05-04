@@ -1,9 +1,6 @@
 package com.pogbe.bankingsystem.services.impl;
 
-import com.fasterxml.jackson.databind.InjectableValues.Base;
 import com.pogbe.bankingsystem.services.interfaces.RsaEncryptionService;
-import io.micrometer.core.instrument.config.validate.Validated;
-import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.yaml.snakeyaml.Yaml;
@@ -19,7 +16,6 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.KeyFactory;
 import java.util.Base64;
 import java.util.Map;
-import java.util.Properties;
 import java.io.InputStream;
 
 @Service
@@ -66,13 +62,18 @@ public class RsaEncryptionServiceImpl implements RsaEncryptionService {
         }
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.DECRYPT_MODE, secretPrivateKey);
-        byte[] secretMessageBytes = Base64.getDecoder().decode(message);
+        byte[] secretMessageBytes;
+        try  {
+            secretMessageBytes = Base64.getDecoder().decode(message);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Your message does not appear to be a valid base64 string");
+        }
         try {
             byte[] decryptedMessageBytes = cipher.doFinal(secretMessageBytes);
             String decryptedMessage = new String(Base64.getDecoder().decode(new String(decryptedMessageBytes)));
             return Map.of("decrypted-message", new String(decryptedMessage));
         } catch (Exception e ) {
-            throw new RuntimeException("Error decrypting message", e);
+            throw new RuntimeException("Error decrypting message, ensure it is a valid base64 and was encrypted with this public key");
         }
     }
 

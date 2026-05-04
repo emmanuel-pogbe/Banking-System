@@ -25,6 +25,7 @@ public interface TransactionRecordRepository extends JpaRepository<TransactionRe
               AND (:type IS NULL OR tr.transactionType = :type)
               AND (:startDateTime IS NULL OR tr.date >= :startDateTime)
               AND (:endDateTime IS NULL OR tr.date <= :endDateTime)
+            ORDER BY tr.date DESC
             """)
     Page<TransactionRecord> findStatementByAccountId(
             @Param("accountId") Long accountId,
@@ -34,6 +35,10 @@ public interface TransactionRecordRepository extends JpaRepository<TransactionRe
             Pageable pageable
     );
 
-    @Query("SELECT tr FROM TransactionRecord tr WHERE tr.senderAccount.id = :accountId OR tr.receiverAccount.id = :accountId")
+        @Query("""
+            SELECT tr FROM TransactionRecord tr 
+            WHERE (tr.senderAccount.id = :accountId AND tr.transactionType = com.pogbe.bankingsystem.constants.TransactionType.DEBIT)
+            OR 
+            (tr.receiverAccount.id = :accountId AND tr.transactionType = com.pogbe.bankingsystem.constants.TransactionType.CREDIT) ORDER BY tr.date DESC""")
     List<TransactionRecord> findFullStatementByAccountId(Long accountId);
 }

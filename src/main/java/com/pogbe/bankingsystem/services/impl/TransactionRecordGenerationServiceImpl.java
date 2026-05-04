@@ -36,10 +36,13 @@ import java.io.OutputStreamWriter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
 @Service
 public class TransactionRecordGenerationServiceImpl implements TransactionRecordGenerationService {
+
+	private static final DateTimeFormatter READABLE_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
 	private final AccountRepository accountRepository;
 	private final UserModelRepository userModelRepository;
@@ -122,7 +125,7 @@ public class TransactionRecordGenerationServiceImpl implements TransactionRecord
 					table.addCell(new PdfPCell(new Phrase(transaction.getTransactionType() == null ? "" : transaction.getTransactionType().toString(), cellFont)));
 					table.addCell(new PdfPCell(new Phrase(transaction.getDescription() == null ? "" : transaction.getDescription(), cellFont)));
 					table.addCell(new PdfPCell(new Phrase(transaction.getAmount() == null ? "" : transaction.getAmount().toString(), cellFont)));
-					table.addCell(new PdfPCell(new Phrase(transaction.getDate() == null ? "" : transaction.getDate().toString(), cellFont)));
+					table.addCell(new PdfPCell(new Phrase(formatDateTime(transaction.getDate()), cellFont)));
 				}
 				doc.add(new Paragraph("Transaction report"));
 				doc.add(new Paragraph("Generated on: " + LocalDate.now()));
@@ -137,7 +140,7 @@ public class TransactionRecordGenerationServiceImpl implements TransactionRecord
 								transaction.getTransactionType().toString(),
 								transaction.getDescription(),
 								transaction.getAmount().toString(),
-								transaction.getDate().toString()
+								formatDateTime(transaction.getDate())
 						};
 						csvWriter.writeNext(row);
 					}
@@ -204,6 +207,13 @@ public class TransactionRecordGenerationServiceImpl implements TransactionRecord
 		} catch (DateTimeParseException ex) {
 			throw new IllegalArgumentException("End date must be in yyyy-MM-dd format");
 		}
+	}
+
+	private String formatDateTime(LocalDateTime dateTime) {
+		if (dateTime == null) {
+			return "";
+		}
+		return dateTime.format(READABLE_DATE_TIME_FORMATTER);
 	}
 
 }
