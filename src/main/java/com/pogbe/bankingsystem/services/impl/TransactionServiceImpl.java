@@ -1,9 +1,13 @@
 package com.pogbe.bankingsystem.services.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pogbe.bankingsystem.constants.TransactionType;
 import com.pogbe.bankingsystem.dto.requests.BulkTransferRequestDTO;
+import com.pogbe.bankingsystem.dto.requests.TransferMoneyDTO;
 import com.pogbe.bankingsystem.dto.requests.TransferMoneyRequest;
 import com.pogbe.bankingsystem.dto.responses.BanksListApiDTO;
+import com.pogbe.bankingsystem.dto.responses.BulkTransferReportResponseDTO;
 import com.pogbe.bankingsystem.dto.responses.SuccessTransfer;
 import com.pogbe.bankingsystem.dto.responses.UserAccountInformation;
 import com.pogbe.bankingsystem.exceptions.custom.ResourceNotAvailable;
@@ -22,9 +26,13 @@ import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobOperator;
+import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.context.ApplicationContext;
+import com.pogbe.bankingsystem.batch.BulkTransferReportHolder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -32,6 +40,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -46,7 +56,8 @@ public class TransactionServiceImpl implements TransactionService {
     private final TransactionRecordRepository transactionRecordRepository;
     private final AesEncryptionService aesEncryptionService;
     private final JobOperator jobOperator;
-    private final Job job;
+    private final JobLauncher jobLauncher;
+    private final ApplicationContext applicationContext;
 
     private static final Logger log = LoggerFactory.getLogger(TransactionServiceImpl.class);
 
@@ -62,7 +73,8 @@ public class TransactionServiceImpl implements TransactionService {
             TransactionRecordRepository transactionRecordRepository,
             AesEncryptionService aesEncryptionService,
             JobOperator jobOperator,
-            Job job
+            JobLauncher jobLauncher,
+            ApplicationContext applicationContext
 
     ) {
         this.accountRepository = accountRepository;
@@ -70,90 +82,32 @@ public class TransactionServiceImpl implements TransactionService {
         this.transactionRecordRepository = transactionRecordRepository;
         this.aesEncryptionService = aesEncryptionService;
         this.jobOperator = jobOperator;
-        this.job = job;
+        this.jobLauncher = jobLauncher;
+        this.applicationContext = applicationContext;
     }
 
+
+    @Override
+    @Transactional
+    public Map<String,String> transferLogic(Account senderAccount, TransferMoneyRequest transferMoneyRequest) {
+        String pin = transferMoneyRequest.getPin();
+        String receiverDetail = transferMoneyRequest.getReceiver();
+        BigDecimal transferAmount = transferMoneyRequest.getAmount();
+        verifyPin(senderAccount, pin);
+        return performFullTransfer(senderAccount, receiverDetail, transferAmount, transferMoneyRequest.getReceiver());
+    }
     @Override
     @Transactional
     public SuccessTransfer transfer(Authentication authentication, TransferMoneyRequest transferMoneyRequest) {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new IllegalArgumentException("Unauthenticated request");
         }
-        String receiverDetail = transferMoneyRequest.getReceiver();
-        if (receiverDetail == null || receiverDetail.isBlank()) {
-           throw new IllegalArgumentException("Receiver account number or username is required");
-        }
-        String pin = transferMoneyRequest.getPin();
-        if (pin == null || pin.isBlank()) {
-            throw new IllegalArgumentException("Account pin is required");
-        }
-        if (pin.length() != 4) {
-            throw new IllegalArgumentException("Account pin must be 4 digits");
-        }
-        if (transferMoneyRequest.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Transfer amount must be greater than zero");
-        }
 
         BigDecimal transferAmount = transferMoneyRequest.getAmount();
         Account senderAccount = getSenderAccount(authentication);
 
-        String decryptedStoredPin = aesEncryptionService.decrypt(senderAccount.getAccountPin());
-        if (!pin.equals(decryptedStoredPin)) {
-            throw new IllegalArgumentException("Invalid account pin");
-        }
-        Account receiverAccount = null;
-        if (NumericUtils.isNumeric(receiverDetail)) {
-            String encryptedReceiverAccountNumber = aesEncryptionService.encrypt(transferMoneyRequest.getReceiver());
-            receiverAccount = accountRepository.findByAccountNumber(encryptedReceiverAccountNumber)
-                    .orElseThrow(() -> new ResourceNotAvailable("Receiver account not found"));
-        }
-        else {
-            receiverAccount = accountRepository.findByUserUsername(receiverDetail)
-                    .orElseThrow(() -> new ResourceNotAvailable("Receiver user not found"));
-        }
-        if (senderAccount.getId() == receiverAccount.getId()) {
-            throw new IllegalArgumentException("Cannot transfer to the same account");
-        }
-
-        BigDecimal senderBalance = senderAccount.getAccountBalance() == null
-                ? BigDecimal.ZERO
-                : senderAccount.getAccountBalance();
-        if (senderBalance.compareTo(transferAmount) < 0) {
-            throw new IllegalArgumentException("Insufficient account balance");
-        }
-
-        BigDecimal receiverBalance = receiverAccount.getAccountBalance() == null
-                ? BigDecimal.ZERO
-                : receiverAccount.getAccountBalance();
-
-        senderAccount.setAccountBalance(senderBalance.subtract(transferAmount));
-        receiverAccount.setAccountBalance(receiverBalance.add(transferAmount));
-        accountRepository.save(senderAccount);
-        accountRepository.save(receiverAccount);
-        String sentTo =receiverAccount.getUser().getUsername();
-        String transferReference = "TXN-" + UUID.randomUUID();
-
-        TransactionRecord debitRecord = new TransactionRecord();
-        debitRecord.setDate(LocalDateTime.now());
-        debitRecord.setTransactionType(TransactionType.DEBIT);
-        debitRecord.setDescription("Transfer to account ending " + receiverAccount.getLastThreeDigits());
-        debitRecord.setAmount(transferAmount);
-        debitRecord.setTransactionReference(transferReference + "-D");
-        debitRecord.setSenderAccount(senderAccount);
-        debitRecord.setReceiverAccount(receiverAccount);
-
-        TransactionRecord creditRecord = new TransactionRecord();
-        creditRecord.setDate(LocalDateTime.now());
-        creditRecord.setTransactionType(TransactionType.CREDIT);
-        creditRecord.setDescription("Transfer from account ending " + senderAccount.getLastThreeDigits());
-        creditRecord.setAmount(transferAmount);
-        creditRecord.setTransactionReference(transferReference + "-C");
-        creditRecord.setSenderAccount(senderAccount);
-        creditRecord.setReceiverAccount(receiverAccount);
-
-        transactionRecordRepository.save(debitRecord);
-        transactionRecordRepository.save(creditRecord);
-
+        transferLogic(senderAccount, transferMoneyRequest);
+        String sentTo = senderAccount.getUser().getUsername();
         return new SuccessTransfer(transferAmount, authentication.getName(), sentTo);
     }
 
@@ -218,21 +172,143 @@ public class TransactionServiceImpl implements TransactionService {
         HttpEntity<String> requestEntity = new HttpEntity<>(headers);
         RestTemplate request = new RestTemplate();
         return request.exchange(bankUrl, HttpMethod.GET,requestEntity,BanksListApiDTO.class).getBody();
+        
+    }
+
+    @Transactional
+    @Override
+    public Map<String, String> transferLogicWithoutPin(Account senderAccount, TransferMoneyDTO transferMoneyDTO) {
+        String receiverDetail = transferMoneyDTO.getReceiver();
+        BigDecimal transferAmount = transferMoneyDTO.getAmount();
+        return performFullTransfer(senderAccount, receiverDetail, transferAmount, transferMoneyDTO.getReceiver());
+    }
+
+    private Map<String, String> performFullTransfer(Account senderAccount, String receiverDetail, BigDecimal transferAmount, String receiver) {
+        Account receiverAccount;
+        if (NumericUtils.isNumeric(receiverDetail)) {
+            String encryptedReceiverAccountNumber = aesEncryptionService.encrypt(receiver);
+            receiverAccount = accountRepository.findByAccountNumber(encryptedReceiverAccountNumber)
+                    .orElseThrow(() -> new ResourceNotAvailable("Receiver account not found"));
+        }
+        else {
+            receiverAccount = accountRepository.findByUserUsername(receiverDetail)
+                    .orElseThrow(() -> new ResourceNotAvailable("Receiver user not found"));
+        }
+        if (senderAccount.getId() == receiverAccount.getId()) {
+            throw new IllegalArgumentException("Cannot transfer to the same account");
+        }
+
+        BigDecimal senderBalance = senderAccount.getAccountBalance() == null
+                ? BigDecimal.ZERO
+                : senderAccount.getAccountBalance();
+        if (senderBalance.compareTo(transferAmount) < 0) {
+            throw new IllegalArgumentException("Insufficient account balance");
+        }
+
+        BigDecimal receiverBalance = receiverAccount.getAccountBalance() == null
+                ? BigDecimal.ZERO
+                : receiverAccount.getAccountBalance();
+
+        senderAccount.setAccountBalance(senderBalance.subtract(transferAmount));
+        receiverAccount.setAccountBalance(receiverBalance.add(transferAmount));
+        accountRepository.save(senderAccount);
+        accountRepository.save(receiverAccount);
+        String transferReference = "TXN-" + UUID.randomUUID();
+
+        TransactionRecord debitRecord = new TransactionRecord();
+        debitRecord.setDate(LocalDateTime.now());
+        debitRecord.setTransactionType(TransactionType.DEBIT);
+        debitRecord.setDescription("Transfer to account ending " + receiverAccount.getLastThreeDigits());
+        debitRecord.setAmount(transferAmount);
+        debitRecord.setTransactionReference(transferReference + "-D");
+        debitRecord.setSenderAccount(senderAccount);
+        debitRecord.setReceiverAccount(receiverAccount);
+
+        TransactionRecord creditRecord = new TransactionRecord();
+        creditRecord.setDate(LocalDateTime.now());
+        creditRecord.setTransactionType(TransactionType.CREDIT);
+        creditRecord.setDescription("Transfer from account ending " + senderAccount.getLastThreeDigits());
+        creditRecord.setAmount(transferAmount);
+        creditRecord.setTransactionReference(transferReference + "-C");
+        creditRecord.setSenderAccount(senderAccount);
+        creditRecord.setReceiverAccount(receiverAccount);
+
+        transactionRecordRepository.save(debitRecord);
+        transactionRecordRepository.save(creditRecord);
+        return Map.of("message", "Transfer successful","sentTo", receiverAccount.getUser().getUsername(),"amount", transferAmount.toString());
     }
 
     @Override
-    public SuccessTransfer bulkTransfer(Authentication authentication, BulkTransferRequestDTO bulkTransferRequestDTO) {
+    public BulkTransferReportResponseDTO bulkTransfer(Authentication authentication, BulkTransferRequestDTO bulkTransferRequestDTO) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new IllegalArgumentException("Unauthenticated request");
+        }
+        Account senderAccount = getSenderAccount(authentication);
+        verifyPin(senderAccount, bulkTransferRequestDTO.getPin());
+        ObjectMapper objectMapper = new ObjectMapper()
+                .registerModule(new JavaTimeModule())
+                .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+        String bulkTransferRequestDTOJsonString;
+        String senderAccountObjectJsonString;
+        try {
+            bulkTransferRequestDTOJsonString = objectMapper.writeValueAsString(bulkTransferRequestDTO);
+            senderAccountObjectJsonString = objectMapper.writeValueAsString(senderAccount);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Couldn't parse JSON"+e.getMessage());
+        }
+        long time = System.currentTimeMillis();
         JobParameters jobParameters = new JobParametersBuilder()
-                .addString("dto", authentication.getName())
-                .addLong("time",System.currentTimeMillis())
+                .addString("dto", bulkTransferRequestDTOJsonString)
+                .addString("sender",senderAccountObjectJsonString)
+                .addLong("time",time)
                         .toJobParameters();
         try {
+            Job bulkTransferJob = applicationContext.getBean("job", Job.class);
             System.out.println("Before job starts");
-                jobOperator.start(job, jobParameters);
+            JobExecution jobExecution = jobOperator.run(bulkTransferJob, jobParameters);
+
+            if (!jobExecution.getAllFailureExceptions().isEmpty()) {
+                Throwable failure = getRootCause(jobExecution.getAllFailureExceptions().get(0));
+                if (failure instanceof IllegalArgumentException illegalArgumentException) {
+                    throw illegalArgumentException;
+                }
+                if (failure instanceof ResourceNotAvailable resourceNotAvailable) {
+                    throw resourceNotAvailable;
+                }
+                if (failure instanceof RuntimeException runtimeException) {
+                    throw runtimeException;
+                }
+                throw new RuntimeException(failure.getMessage(), failure);
+            }
+
+            BulkTransferReportHolder holder = applicationContext.getBean(BulkTransferReportHolder.class);
+            BulkTransferReportResponseDTO report = holder.getReport(String.valueOf(time));
+            if (report == null) {
+                throw new RuntimeException("Bulk transfer failed, please try again in 1 minute");
+            }
+            return report;
+        } catch (IllegalArgumentException | ResourceNotAvailable ex) {
+            throw ex;
         } catch (Exception e) {
-            System.out.println("Error, I'll do better later");
+            throw new RuntimeException("Bulk transfer failed, please try again in 1 minute", e);
         }
-        System.out.println("Bulk transfer successful");
-        return new SuccessTransfer(BigDecimal.ZERO, authentication.getName(), "Bulk transfer started");
+        
+    }
+
+    private Throwable getRootCause(Throwable throwable) {
+        Throwable current = throwable;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    private void verifyPin(Account account, String pin) {
+        String decryptedStoredPin = aesEncryptionService.decrypt(account.getAccountPin());
+        if (!pin.equals(decryptedStoredPin)) {
+            throw new IllegalArgumentException("Invalid account pin");
+        }
     }
 }
+
+

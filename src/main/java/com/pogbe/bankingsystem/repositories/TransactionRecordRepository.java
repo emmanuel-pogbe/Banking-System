@@ -1,7 +1,6 @@
 package com.pogbe.bankingsystem.repositories;
 
 import com.pogbe.bankingsystem.constants.TransactionType;
-import com.pogbe.bankingsystem.models.Account;
 import com.pogbe.bankingsystem.models.TransactionRecord;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

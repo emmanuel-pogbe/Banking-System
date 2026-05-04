@@ -62,7 +62,7 @@ public class UserController {
 
     @PostMapping("/transfer/batch")
     @SecurityRequirement(name = "Bearer Authentication")
-    public ResponseEntity<SuccessTransfer> transferMoneyBatch(@RequestBody BulkTransferRequestDTO bulkTransferRequestDTO, Authentication authentication) {
+    public ResponseEntity<BulkTransferReportResponseDTO> transferMoneyBatch(@RequestBody BulkTransferRequestDTO bulkTransferRequestDTO, Authentication authentication) {
         return ResponseEntity.ok(transactionService.bulkTransfer(authentication, bulkTransferRequestDTO));
     }
 

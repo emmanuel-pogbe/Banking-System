@@ -13,8 +13,6 @@ import com.pogbe.bankingsystem.repositories.TransactionRecordRepository;
 import com.pogbe.bankingsystem.repositories.UserModelRepository;
 import com.pogbe.bankingsystem.services.interfaces.TransactionRecordGenerationService;
 import io.jsonwebtoken.Claims;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -46,8 +44,6 @@ public class TransactionRecordGenerationServiceImpl implements TransactionRecord
 	private final AccountRepository accountRepository;
 	private final UserModelRepository userModelRepository;
 	private final TransactionRecordRepository transactionRecordRepository;
-
-	private static final Logger LOG = LoggerFactory.getLogger(TransactionRecordGenerationServiceImpl.class);
 
 	public TransactionRecordGenerationServiceImpl(
 			AccountRepository accountRepository,
@@ -133,19 +129,20 @@ public class TransactionRecordGenerationServiceImpl implements TransactionRecord
 				doc.add(table);
 				doc.close();
 			} else {
-				CSVWriter csvWriter = new CSVWriter(new OutputStreamWriter(outputStream));
-				String[] headers = {"Transaction Reference","Transaction Type","Description","Amount","Date"};
-				csvWriter.writeNext(headers);
-				for (TransactionRecord transaction : allTransactions) {
-					String[] row = {transaction.getTransactionReference(),
-							transaction.getTransactionType().toString(),
-							transaction.getDescription(),
-							transaction.getAmount().toString(),
-							transaction.getDate().toString()
-					};
-					csvWriter.writeNext(row);
+				try (CSVWriter csvWriter = new CSVWriter(new OutputStreamWriter(outputStream))) {
+					String[] headers = {"Transaction Reference","Transaction Type","Description","Amount","Date"};
+					csvWriter.writeNext(headers);
+					for (TransactionRecord transaction : allTransactions) {
+						String[] row = {transaction.getTransactionReference(),
+								transaction.getTransactionType().toString(),
+								transaction.getDescription(),
+								transaction.getAmount().toString(),
+								transaction.getDate().toString()
+						};
+						csvWriter.writeNext(row);
+					}
+					csvWriter.flush();
 				}
-				csvWriter.flush();
 			}
 
 			return outputStream.toByteArray();

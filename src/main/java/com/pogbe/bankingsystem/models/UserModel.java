@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.time.LocalDateTime;
 
@@ -14,6 +16,7 @@ import java.time.LocalDateTime;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Table(indexes = @Index(name = "idx_username",columnList = "username"))
 public class UserModel {
     @Id
@@ -38,5 +41,6 @@ public class UserModel {
     private String profilePictureContentType;
 
     @OneToOne(mappedBy = "user",cascade = CascadeType.ALL)
+    @JsonIgnore
     private Account userAccount;
 }
